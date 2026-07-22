@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+PyJWT
+bcrypt
+sqlalchemy
+psycopg2-binary
+pywebpush
+cryptography

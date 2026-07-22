@@ -1,0 +1,11 @@
+{
+  "pythonVersion": "3.14",
+  "extraPaths": ["./"],
+  "include": ["."],
+  "venvPath": ".",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportAttributeAccessIssue": "none",
+  "reportGeneralTypeIssues": "none"
+}
+

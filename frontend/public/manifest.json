@@ -1,0 +1,21 @@
+{
+  "short_name": "Clientele CRM",
+  "name": "Clientele CRM - Workforce & Task Management",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#800000",
+  "display": "standalone",
+  "orientation": "portrait"
+}
