@@ -3,9 +3,9 @@ import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
-export default function CalendarPanel() {
+export default function CalendarPanel({ readOnly = false }) {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' && !readOnly;
 
   const [events, setEvents] = useState([]);
   const [leaves, setLeaves] = useState([]);
@@ -144,14 +144,14 @@ export default function CalendarPanel() {
       {error && <div className="error-banner">{error}</div>}
 
       <div className="panel">
-        <div className="panel-head">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div className="panel-head" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '200px', justifyContent: 'center' }}>
             <button className="btn btn-ghost btn-sm" onClick={prevMonth}>◂</button>
-            <h3 style={{ minWidth: '180px', textAlign: 'center' }}>{monthNames[viewMonth]} {viewYear}</h3>
+            <h3 style={{ margin: 0, textAlign: 'center', flex: 1, whiteSpace: 'nowrap' }}>{monthNames[viewMonth]} {viewYear}</h3>
             <button className="btn btn-ghost btn-sm" onClick={nextMonth}>▸</button>
           </div>
           {isAdmin && (
-            <button className="btn btn-primary btn-sm" onClick={() => {
+            <button className="btn btn-primary btn-sm" style={{ whiteSpace: 'nowrap' }} onClick={() => {
               setSelectedDate(todayStr);
               setEventForm({ title: '', date: todayStr, description: '', type: 'company' });
               setShowAddEvent(true);

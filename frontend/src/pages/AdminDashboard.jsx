@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Shell from '../components/Shell';
+import AnnouncementsWidget from '../components/AnnouncementsWidget';
 import api from '../api';
 import AdminTasksPanel from './AdminTasksPanel';
 import AdminEmployeesPanel from './AdminEmployeesPanel';
@@ -16,6 +17,7 @@ import NotificationSettings from './NotificationSettings';
 import AdminAssetsPanel from './AdminAssetsPanel';
 import AdminVerifiedDocsPanel from './AdminVerifiedDocsPanel';
 import AdminTaskVerificationPanel from './AdminTaskVerificationPanel';
+import CompanyInfoPanel from './CompanyInfoPanel';
 
 const TITLES = {
   overview: 'Admin overview',
@@ -32,6 +34,7 @@ const TITLES = {
   chat: 'Chat room',
   'admin-profile': 'My profile',
   'notification-settings': 'Notification settings',
+  'company-info': 'Company Info',
 };
 
 const EMPLOYEE_VIEW_TITLES = {
@@ -103,6 +106,7 @@ export default function AdminDashboard() {
         { key: 'leaves', label: 'Leave approvals', icon: '📅', count: pendingLeaves || undefined },
         { key: 'departments', label: 'Departments', icon: '🏢' },
         { key: 'company-assets', label: 'Company assets', icon: '💼' },
+        { key: 'company-info', label: 'Company info', icon: '🏢' },
         { key: 'verified-docs', label: 'Verified documents', icon: '📜' },
         { key: 'calendar', label: 'Calendar', icon: '📆' },
         { key: 'meetings', label: 'Meetings', icon: '🤝' },
@@ -154,13 +158,14 @@ export default function AdminDashboard() {
     <Shell navGroups={navGroups} activeKey={tab} onNavigate={setTab} title={TITLES[tab]}>
       {tab === 'overview' && stats && (
         <>
+          <AnnouncementsWidget />
           <div className="stat-grid">
             <div className="stat-card"><div className="num">{stats.employees}</div><div className="label">Employees</div></div>
             <div className="stat-card"><div className="num">{stats.tasks}</div><div className="label">Total tasks</div></div>
             <div className="stat-card"><div className="num">{stats.incomplete}</div><div className="label">Incomplete</div></div>
             <div className="stat-card"><div className="num">{stats.completed}</div><div className="label">Completed</div></div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start', marginTop: '20px' }}>
+          <div className="admin-dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start', marginTop: '20px' }}>
             <div className="panel" style={{ marginBottom: 0 }}>
               <div className="panel-head"><h3>Business console</h3></div>
               <div className="panel-body">
@@ -254,6 +259,7 @@ export default function AdminDashboard() {
       {tab === 'leaves' && <AdminLeavesPanel />}
       {tab === 'departments' && <DepartmentsPanel />}
       {tab === 'company-assets' && <AdminAssetsPanel />}
+      {tab === 'company-info' && <CompanyInfoPanel />}
       {tab === 'verified-docs' && <AdminVerifiedDocsPanel />}
       {tab === 'calendar' && <CalendarPanel />}
       {tab === 'meetings' && <MeetingsPanel />}

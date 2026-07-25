@@ -290,12 +290,12 @@ export function TaskDetailsModal({ task, employees, onClose, onUpdateStatus }) {
   const empName = employee ? employee.name : 'Unknown';
   const empDept = employee ? employee.department : '—';
 
-  const handleViewFile = () => {
-    if (!currentTask.pmedData) return;
+  const handleViewFile = (data) => {
+    if (!data) return;
     const newTab = window.open();
     if (newTab) {
       newTab.document.write(
-        `<iframe src="${currentTask.pmedData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
+        `<iframe src="${data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
       );
     }
   };
@@ -372,7 +372,58 @@ export function TaskDetailsModal({ task, employees, onClose, onUpdateStatus }) {
         </div>
 
         {/* Work Deliverables & File Attachment Section */}
-        {currentTask.pmedData ? (
+        {(currentTask.pmedFiles && currentTask.pmedFiles.length > 0) ? (
+          <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px', border: '1px solid #e2e8f0', marginTop: '10px' }}>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>📄 Attached Work Deliverables / Proof Files</h4>
+            <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#64748b' }}>
+              Attached by employee for task completion verification:
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {currentTask.pmedFiles.map((file, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', background: 'white', padding: '10px 14px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 500, color: '#0f172a', wordBreak: 'break-all', flex: 1, minWidth: '150px' }}>📎 {file.name || 'Work_Proof_File'}</span>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <button 
+                      onClick={() => handleViewFile(file.data)}
+                      className="btn btn-ghost btn-sm"
+                      style={{ padding: '4px 8px', fontSize: '11px' }}
+                    >
+                      👁 View File
+                    </button>
+                    <a 
+                      href={file.data} 
+                      download={file.name || 'work_proof_file'} 
+                      className="btn btn-primary btn-sm"
+                      style={{ padding: '4px 8px', fontSize: '11px', textDecoration: 'none' }}
+                    >
+                      Download File
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+              {/* Admin Verification Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', background: '#f1f5f9', padding: '10px 14px', borderRadius: '6px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>Admin Verification Review:</span>
+                <button 
+                  onClick={() => handleUpdatePmedStatus('Verified')}
+                  className="btn btn-primary btn-sm"
+                  style={{ background: '#16a34a', border: 'none', padding: '4px 12px', fontSize: '12px' }}
+                >
+                  ✓ Verify & Approve Work
+                </button>
+                <button 
+                  onClick={() => handleUpdatePmedStatus('Rejected')}
+                  className="btn btn-danger btn-sm"
+                  style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '4px 12px', fontSize: '12px' }}
+                >
+                  ✕ Reject (Needs Revision)
+                </button>
+              </div>
+          </div>
+        ) : currentTask.pmedData ? (
           <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px', border: '1px solid #e2e8f0', marginTop: '10px' }}>
             <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>📄 Attached Work Deliverable / Proof File</h4>
             <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#64748b' }}>
@@ -384,7 +435,7 @@ export function TaskDetailsModal({ task, employees, onClose, onUpdateStatus }) {
                 <span style={{ fontSize: '13px', fontWeight: 500, color: '#0f172a', wordBreak: 'break-all', flex: 1, minWidth: '150px' }}>📎 {currentTask.pmedName || 'Work_Proof_File'}</span>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   <button 
-                    onClick={handleViewFile}
+                    onClick={() => handleViewFile(currentTask.pmedData)}
                     className="btn btn-ghost btn-sm"
                     style={{ padding: '4px 8px', fontSize: '11px' }}
                   >
@@ -400,7 +451,7 @@ export function TaskDetailsModal({ task, employees, onClose, onUpdateStatus }) {
                   </a>
                 </div>
               </div>
-
+              
               {/* Admin Verification Actions */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', background: '#f1f5f9', padding: '10px 14px', borderRadius: '6px', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>Admin Verification Review:</span>

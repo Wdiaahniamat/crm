@@ -24,9 +24,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'CRM Dashboard';
   const options = {
     body: data.body || '',
-    icon: data.icon || '/icon-192.png',
-    badge: data.badge || '/favicon.png',
     tag: data.type || 'crm-notification',
+    requireInteraction: true,
     data: {
       url: data.url || '/',
       timestamp: data.timestamp || Date.now(),

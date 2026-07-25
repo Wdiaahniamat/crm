@@ -213,10 +213,10 @@ export default function AdminTaskVerificationPanel() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {[...filtered].reverse().map((t) => {
                 const vstyle = VSTATUS_STYLE[t.pmedStatus] || VSTATUS_STYLE.default;
-                const vLabel = t.pmedStatus || (t.pmedData ? 'Submitted' : 'No Proof');
+                const vLabel = t.pmedStatus || ((t.pmedData || (t.pmedFiles && t.pmedFiles.length > 0)) ? 'Submitted' : 'No Proof');
                 const empName = employeeName(t.assignedTo);
                 const empDept = employeeDept(t.assignedTo);
-                const awaitingAction = t.pmedData && t.pmedStatus !== 'Verified' && t.pmedStatus !== 'Rejected';
+                const awaitingAction = (t.pmedData || (t.pmedFiles && t.pmedFiles.length > 0)) && t.pmedStatus !== 'Verified' && t.pmedStatus !== 'Rejected';
 
                 return (
                   <div
@@ -265,7 +265,7 @@ export default function AdminTaskVerificationPanel() {
 
                     {/* Actions */}
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
-                      {t.pmedData && (
+                      {(t.pmedData || (t.pmedFiles && t.pmedFiles.length > 0)) && (
                         <>
                           <button
                             className="btn btn-sm"

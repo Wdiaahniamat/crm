@@ -33,6 +33,9 @@ export async function registerServiceWorker() {
 }
 
 export async function getPushSubscriptionStatus() {
+  if (typeof window !== 'undefined' && !window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return { supported: false, isInsecureContext: true, permission: 'denied', subscribed: false };
+  }
   if (!isPushSupported()) return { supported: false, permission: 'denied', subscribed: false };
   const permission = Notification.permission;
   const registration = await navigator.serviceWorker.getRegistration('/');

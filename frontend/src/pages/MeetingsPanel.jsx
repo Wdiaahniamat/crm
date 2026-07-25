@@ -16,6 +16,16 @@ export default function MeetingsPanel({ isEmployeeView }) {
     title: '', date: '', time: '', type: 'employee',
     department: '', scope: '', client: '', description: '', agenda: '',
   });
+  const [editingId, setEditingId] = useState(null);
+
+  const renderTextWithLinks = (text) => {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    return parts.map((part, i) => 
+      urlRegex.test(part) ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)', textDecoration: 'underline' }}>{part}</a> : part
+    );
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -40,14 +50,37 @@ export default function MeetingsPanel({ isEmployeeView }) {
     setError('');
     setNotice('');
     try {
-      await api.post('/meetings', form);
-      setNotice('Meeting scheduled successfully.');
+      if (editingId) {
+        await api.put(`/meetings/${editingId}`, form);
+        setNotice('Meeting updated successfully.');
+      } else {
+        await api.post('/meetings', form);
+        setNotice('Meeting scheduled successfully.');
+      }
       setForm({ title: '', date: '', time: '', type: 'employee', department: '', scope: '', client: '', description: '', agenda: '' });
+      setEditingId(null);
       setShowForm(false);
       load();
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not schedule meeting.');
+      setError(err.response?.data?.error || 'Could not save meeting.');
     }
+  }
+
+  function openEdit(meeting) {
+    setForm({
+      title: meeting.title || '',
+      date: meeting.date || '',
+      time: meeting.time || '',
+      type: meeting.type || 'employee',
+      department: meeting.department || '',
+      scope: meeting.scope || '',
+      client: meeting.client || '',
+      description: meeting.description || '',
+      agenda: meeting.agenda || ''
+    });
+    setEditingId(meeting.id);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function handleDelete(id) {
@@ -109,7 +142,7 @@ export default function MeetingsPanel({ isEmployeeView }) {
           <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px', lineHeight: 1.6 }}>
               {meeting.time && <div><strong>Timing:</strong> {meeting.time}</div>}
-              {meeting.description && <div><strong>Description:</strong> {meeting.description}</div>}
+              {meeting.description && <div><strong>Description:</strong> {renderTextWithLinks(meeting.description)}</div>}
               {!meeting.description && !meeting.time && <div><em>No additional details.</em></div>}
             </div>
 
@@ -135,7 +168,10 @@ export default function MeetingsPanel({ isEmployeeView }) {
             </div>
 
             {isAdmin && (
-              <div style={{ marginTop: '12px', borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
+              <div style={{ marginTop: '12px', borderTop: '1px solid var(--border)', paddingTop: '10px', display: 'flex', gap: '8px' }}>
+                <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); openEdit(meeting); }} style={{ fontSize: '12px', padding: '4px 10px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }}>
+                  Edit
+                </button>
                 <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); handleDelete(meeting.id); }} style={{ fontSize: '12px', padding: '4px 10px' }}>
                   Delete
                 </button>
@@ -156,8 +192,16 @@ export default function MeetingsPanel({ isEmployeeView }) {
       {isAdmin && (
         <div className="panel" style={{ marginBottom: '24px' }}>
           <div className="panel-head">
-            <h3>Schedule a meeting</h3>
-            <button className="btn btn-primary btn-sm" onClick={() => setShowForm(!showForm)}>
+            <h3>{editingId ? 'Edit meeting' : 'Schedule a meeting'}</h3>
+            <button className="btn btn-primary btn-sm" onClick={() => {
+              if (showForm) {
+                setShowForm(false);
+                setEditingId(null);
+                setForm({ title: '', date: '', time: '', type: 'employee', department: '', scope: '', client: '', description: '', agenda: '' });
+              } else {
+                setShowForm(true);
+              }
+            }}>
               {showForm ? 'Cancel' : '+ New meeting'}
             </button>
           </div>

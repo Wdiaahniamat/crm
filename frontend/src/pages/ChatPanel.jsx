@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 
+
 export default function ChatPanel({ employeeId, onBack }) {
   const { user } = useAuth();
   const [contacts, setContacts] = useState([]);
@@ -13,6 +14,11 @@ export default function ChatPanel({ employeeId, onBack }) {
   const [attachment, setAttachment] = useState(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [replyingToMessage, setReplyingToMessage] = useState(null);
+
+  // Group creation state
+  const [groupName, setGroupName] = useState('');
+  const [selectedEmpIds, setSelectedEmpIds] = useState([]);
 
   // Mobile view toggle: 'contacts' | 'chat'
   const [mobileView, setMobileView] = useState('contacts');
@@ -93,46 +99,66 @@ export default function ChatPanel({ employeeId, onBack }) {
   useEffect(() => {
     if (!user) return;
     
-    // Convert http://.../api to ws://.../api/chat/ws/{id}
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-    const wsUrl = API_BASE.replace(/^http/, 'ws') + `/chat/ws/${user.id}`;
-    
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
+    let ws = null;
+    let reconnectTimer = null;
+    let isComponentMounted = true;
 
-    ws.onopen = () => {
-      console.log('Chat WebSocket connected');
-      setError('');
-    };
+    const connectWebSocket = () => {
+      const API_BASE = import.meta.env.VITE_API_URL || '/api';
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsHost = API_BASE.startsWith('http')
+        ? API_BASE.replace(/^http/, 'ws')
+        : `${wsProtocol}//${window.location.host}${API_BASE}`;
+      const wsUrl = `${wsHost}/chat/ws/${user.id}`;
+      
+      ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.action === 'send') {
-          setMessages((prev) => {
-            if (prev.some(m => m.id === data.id)) return prev;
-            return [...prev, data];
-          });
-        } else if (data.action === 'edit') {
-          setMessages((prev) => prev.map(m => m.id === data.id ? { ...m, content: data.content } : m));
-        } else if (data.action === 'delete') {
-          setMessages((prev) => prev.filter(m => m.id !== data.id));
+      ws.onopen = () => {
+        console.log('Chat WebSocket connected');
+        setError('');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.action === 'send') {
+            setMessages((prev) => {
+              if (prev.some(m => m.id === data.id)) return prev;
+              return [...prev, data];
+            });
+          } else if (data.action === 'edit') {
+            setMessages((prev) => prev.map(m => m.id === data.id ? { ...m, content: data.content } : m));
+          } else if (data.action === 'delete') {
+            setMessages((prev) => prev.filter(m => m.id !== data.id));
+          }
+        } catch (err) {
+          console.error('Error parsing websocket message', err);
         }
-      } catch (err) {
-        console.error('Error parsing websocket message', err);
-      }
+      };
+
+      ws.onerror = (err) => {
+        console.error('Chat WebSocket error', err);
+      };
+
+      ws.onclose = () => {
+        console.log('Chat WebSocket closed');
+        if (isComponentMounted) {
+          // Attempt to reconnect after 3 seconds
+          reconnectTimer = setTimeout(() => {
+            console.log('Attempting to reconnect WebSocket...');
+            connectWebSocket();
+          }, 3000);
+        }
+      };
     };
 
-    ws.onerror = (err) => {
-      console.error('Chat WebSocket error', err);
-    };
-
-    ws.onclose = () => {
-      console.log('Chat WebSocket closed');
-    };
+    connectWebSocket();
 
     return () => {
-      ws.close();
+      isComponentMounted = false;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (ws) ws.close();
     };
   }, [user]);
 
@@ -161,6 +187,7 @@ export default function ChatPanel({ employeeId, onBack }) {
         content: newMessage,
         attachmentName: attachment?.name,
         attachmentData: attachment?.data,
+        replyToId: replyingToMessage?.id,
       };
       
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -171,6 +198,7 @@ export default function ChatPanel({ employeeId, onBack }) {
       
       setNewMessage('');
       setAttachment(null);
+      setReplyingToMessage(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch {
       setError('Could not send message.');
@@ -244,8 +272,17 @@ export default function ChatPanel({ employeeId, onBack }) {
           >
             <span style={mobile ? { fontSize: '16px', fontWeight: 700, color: 'var(--ink)' } : {}}>
               {mobile ? '💬 ' : ''}
-              {mobile ? 'Direct Messages' : <h4 style={{ margin: 0 }}>Direct Messages</h4>}
+              {mobile ? 'Direct Messages' : <h4 style={{ margin: 0 }}>Messages & Groups</h4>}
             </span>
+            {user?.role === 'admin' && !mobile && (
+              <button 
+                onClick={() => selectContact({ id: 'CREATE_GROUP', name: 'Create Group' })}
+                className="btn btn-primary btn-sm"
+                style={{ fontSize: '11px', padding: '4px 8px' }}
+              >
+                + Group
+              </button>
+            )}
             {onBack && (
               <button
                 onClick={onBack}
@@ -308,6 +345,71 @@ export default function ChatPanel({ employeeId, onBack }) {
       );
     }
 
+    if (selectedTarget.id === 'CREATE_GROUP') {
+      const allEmployees = contacts.filter(c => c.role === 'employee' || c.role === 'admin');
+      
+      return (
+        <div className="create-group-container" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
+          <h2>Create Custom Discussion Group</h2>
+          {error && <div className="error-banner" style={{ marginBottom: '16px' }}>{error}</div>}
+          
+          <div className="form-group" style={{ marginBottom: '24px' }}>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px' }}>Group Name</label>
+            <input 
+              type="text" 
+              className="form-control" 
+              value={groupName} 
+              onChange={e => setGroupName(e.target.value)} 
+              placeholder="e.g. Q3 Planning"
+              style={{ width: '100%', maxWidth: '400px' }}
+            />
+          </div>
+
+          <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px' }}>Select Members</label>
+          <div style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflowY: 'auto', background: 'var(--surface)', padding: '16px', marginBottom: '24px' }}>
+            {allEmployees.map(emp => (
+              <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}>
+                <input 
+                  type="checkbox" 
+                  checked={selectedEmpIds.includes(emp.id)} 
+                  onChange={(e) => {
+                    if (e.target.checked) setSelectedEmpIds(prev => [...prev, emp.id]);
+                    else setSelectedEmpIds(prev => prev.filter(id => id !== emp.id));
+                  }} 
+                />
+                <div>
+                  <div style={{ fontWeight: 500 }}>{emp.name}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{emp.department || emp.role}</div>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button 
+              className="btn btn-primary" 
+              disabled={!groupName.trim() || selectedEmpIds.length === 0}
+              onClick={async () => {
+                try {
+                  const res = await api.post('/chat/groups', { name: groupName, employeeIds: selectedEmpIds });
+                  setGroupName('');
+                  setSelectedEmpIds([]);
+                  const newGroup = { id: res.data.id, name: groupName, username: 'Custom Group', role: 'group', isGroup: true };
+                  setContacts(prev => [...prev, newGroup]);
+                  selectContact(newGroup);
+                } catch {
+                  setError('Could not create group.');
+                }
+              }}
+            >
+              Create Group
+            </button>
+            <button className="btn btn-ghost" onClick={() => selectContact(null)}>Cancel</button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <>
         <div className="chat-header">
@@ -328,8 +430,29 @@ export default function ChatPanel({ employeeId, onBack }) {
             </button>
             <div className="chat-header-info" style={{ minWidth: 0 }}>
               <h3 style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>💬 {selectedTarget.name}</h3>
-              <span className="desc">Direct Message (Private)</span>
+              <span className="desc">{selectedTarget.isGroup ? 'Discussion Group' : 'Direct Message (Private)'}</span>
             </div>
+          </div>
+          <div className="chat-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+            {selectedTarget.isGroup && user?.role === 'admin' && (
+              <button 
+                className="btn btn-sm btn-ghost" 
+                style={{ color: 'var(--maroon)', borderColor: 'var(--maroon)' }}
+                onClick={async () => {
+                  if (window.confirm(`Are you sure you want to delete the group "${selectedTarget.name}"? This cannot be undone.`)) {
+                    try {
+                      await api.delete(`/chat/groups/${selectedTarget.id}`);
+                      setContacts(prev => prev.filter(c => c.id !== selectedTarget.id));
+                      selectContact(null);
+                    } catch {
+                      setError('Could not delete group.');
+                    }
+                  }
+                }}
+              >
+                Delete Group
+              </button>
+            )}
           </div>
           <div className="chat-message-search" style={{ flexShrink: 0 }}>
             <input
@@ -366,12 +489,23 @@ export default function ChatPanel({ employeeId, onBack }) {
                       <span className="msg-time">{dateStr}</span>
                       {isMe && (
                         <div className="msg-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '8px', fontSize: '12px' }}>
+                          <button onClick={() => setReplyingToMessage(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>Reply</button>
                           <button onClick={() => handleEditInit(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--blue)' }}>Edit</button>
-                          <button onClick={() => handleDelete(msg.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--maroon)' }}>Delete for Everyone</button>
+                          <button onClick={() => handleDelete(msg.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--maroon)' }}>Delete</button>
+                        </div>
+                      )}
+                      {!isMe && (
+                        <div className="msg-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '8px', fontSize: '12px' }}>
+                          <button onClick={() => setReplyingToMessage(msg)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>Reply</button>
                         </div>
                       )}
                     </div>
                     <div className="msg-content">
+                      {msg.replyToId && messages.find(m => m.id === msg.replyToId) && (
+                        <div style={{ background: 'var(--canvas)', borderLeft: '3px solid var(--blue)', padding: '4px 8px', marginBottom: '4px', fontSize: '12px', borderRadius: '4px', color: 'var(--text-muted)' }}>
+                          <em>Replying to: {messages.find(m => m.id === msg.replyToId).content.substring(0, 50)}...</em>
+                        </div>
+                      )}
                       {msg.id === editingMessageId ? (
                         <div style={{ marginTop: '4px' }}>
                           <input
@@ -391,7 +525,7 @@ export default function ChatPanel({ employeeId, onBack }) {
                           </div>
                         </div>
                       ) : (
-                        msg.content
+                        <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</div>
                       )}
                       {msg.attachmentData && (
                         <div className="msg-attachment" style={{ marginTop: '8px' }}>
@@ -428,6 +562,14 @@ export default function ChatPanel({ employeeId, onBack }) {
               <button onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--maroon)' }}>×</button>
             </div>
           )}
+          {replyingToMessage && (
+            <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', background: 'var(--canvas)', borderLeft: '3px solid var(--blue)', borderRadius: '0 var(--radius) var(--radius) 0' }}>
+              <span style={{ fontSize: '12px', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-muted)' }}>
+                <em>Replying to: {replyingToMessage.content.substring(0, 50)}...</em>
+              </span>
+              <button onClick={() => setReplyingToMessage(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--maroon)' }}>×</button>
+            </div>
+          )}
           <form className="chat-input-bar" onSubmit={handleSend} style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, padding: 0, border: 'none', background: 'none' }}>
             <input type="file" ref={fileInputRef} onChange={handleFileSelect} style={{ display: 'none' }} />
             <button
@@ -439,13 +581,18 @@ export default function ChatPanel({ employeeId, onBack }) {
             >
               📎
             </button>
-            <input
-              type="text"
+            <textarea
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              placeholder={`Message ${selectedTarget.name}...`}
-              autoComplete="off"
-              style={{ flex: 1, minWidth: 0 }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend(e);
+                }
+              }}
+              placeholder={`Message ${selectedTarget.name}... (Shift+Enter for new line)`}
+              style={{ flex: 1, minWidth: 0, resize: 'none', height: '40px', padding: '10px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontFamily: 'inherit' }}
+              rows={1}
             />
             <button type="submit" className="btn btn-primary" disabled={sending || (!newMessage.trim() && !attachment)} style={{ flexShrink: 0 }}>
               Send

@@ -8,12 +8,21 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from database import engine, Base
-from routers import auth, requests, users, tasks, leaves, attendance, clients, projects, departments, events, meetings, chat, notifications, assets
+from routers import auth, requests, users, tasks, leaves, attendance, clients, projects, departments, events, meetings, chat, notifications, assets, announcements, company_info
 
 # Ensure all database tables are created
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="CRM Backend")
+from jobs import scheduler
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
+app = FastAPI(title="CRM Backend", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,7 +50,8 @@ app.include_router(meetings.router, prefix="/api/meetings", tags=["meetings"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 app.include_router(assets.router, prefix="/api/assets", tags=["assets"])
-
+app.include_router(announcements.router, prefix="/api/announcements", tags=["announcements"])
+app.include_router(company_info.router, prefix="/api/company-info", tags=["company-info"])
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
     detail = exc.detail

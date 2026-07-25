@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({ baseURL: API_BASE });
 
@@ -14,11 +14,12 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response && err.response.status === 401) {
-      localStorage.removeItem('crm_token');
-      localStorage.removeItem('crm_user');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+      console.error('API returned 401 on url:', err.config.url, 'method:', err.config.method);
+      // localStorage.removeItem('crm_token');
+      // localStorage.removeItem('crm_user');
+      // if (window.location.pathname !== '/login') {
+      //   window.location.href = '/login';
+      // }
     }
     return Promise.reject(err);
   }

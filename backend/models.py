@@ -49,8 +49,11 @@ class Task(Base):
     completedAt = Column(String, nullable=True)
     pmedName = Column(String, nullable=True)
     pmedData = Column(String, nullable=True)
+    pmedFiles = Column(JSON, default=list)
     pmedStatus = Column(String, default="Pending Verification")
     comments = Column(JSON, default=list)
+    reminderSent = Column(Boolean, default=False)
+    reminder10mSent = Column(Boolean, default=False)
 
 class Leave(Base):
     __tablename__ = "leaves"
@@ -113,6 +116,8 @@ class Event(Base):
     description = Column(String)
     type = Column(String)
     createdAt = Column(String)
+    reminderSent = Column(Boolean, default=False)
+    reminder10mSent = Column(Boolean, default=False)
 
 class Meeting(Base):
     __tablename__ = "meetings"
@@ -127,6 +132,8 @@ class Meeting(Base):
     description = Column(String)
     agenda = Column(String)
     createdAt = Column(String)
+    reminderSent = Column(Boolean, default=False)
+    reminder10mSent = Column(Boolean, default=False)
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
@@ -138,6 +145,15 @@ class ChatMessage(Base):
     timestamp = Column(String)
     attachmentName = Column(String, nullable=True)
     attachmentData = Column(String, nullable=True)
+    replyToId = Column(String, nullable=True, index=True)
+
+class ChatGroup(Base):
+    __tablename__ = "chat_groups"
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String)
+    department = Column(String, nullable=True)
+    employeeIds = Column(JSON, default=list)
+    createdAt = Column(String)
 
 class Notification(Base):
     __tablename__ = "notifications"
@@ -170,6 +186,18 @@ class PushSubscription(Base):
     userAgent = Column(String, nullable=True)
     createdAt = Column(String)
 
+class Announcement(Base):
+    __tablename__ = "announcements"
+    id = Column(String, primary_key=True, index=True)
+    title = Column(String)
+    content = Column(String)
+    authorId = Column(String, index=True)
+    authorName = Column(String)
+    createdAt = Column(String)
 
-
-
+class CompanyInfo(Base):
+    __tablename__ = "company_info"
+    id = Column(String, primary_key=True, index=True)
+    title = Column(String)
+    content = Column(String)
+    updatedAt = Column(String)

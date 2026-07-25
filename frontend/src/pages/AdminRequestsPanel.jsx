@@ -8,17 +8,39 @@ export default function AdminRequestsPanel() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await api.get('/requests');
-    setRequests(res.data);
-    setLoading(false);
+    try {
+      const res = await api.get('/requests');
+      setRequests(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   async function decide(req, action) {
-    await api.post(`/requests/${req.id}/${action}`);
-    setNotice(action === 'approve' ? `${req.name}'s account was created.` : `${req.name}'s request was rejected.`);
-    load();
+    try {
+      await api.post(`/requests/${req.id}/${action}`);
+      setNotice(action === 'approve' ? `${req.name}'s account was created.` : `${req.name}'s request was rejected.`);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Action failed.');
+    }
+  }
+
+  async function handleDelete(req) {
+    if (!confirm(`Are you sure you want to permanently delete "${req.name}"? This will remove the account request and employee record.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/requests/${req.id}`);
+      setNotice(`"${req.name}" was successfully deleted.`);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Could not delete request or employee.');
+    }
   }
 
   if (loading) return <div className="empty-state">Loading requests…</div>;
@@ -38,15 +60,16 @@ export default function AdminRequestsPanel() {
             pending.map((r) => (
               <div className="employee-list-item" key={r.id}>
                 <div className="employee-info">
-                  <div className="avatar">{r.name[0]}</div>
+                  <div className="avatar">{r.name ? r.name[0] : 'U'}</div>
                   <div className="meta">
                     <strong>{r.name}</strong>
                     <span>{r.email} · @{r.username} · {r.department}</span>
                   </div>
                 </div>
-                <div>
-                  <button className="btn btn-danger btn-sm" onClick={() => decide(r, 'reject')}>Reject</button>{' '}
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <button className="btn btn-danger btn-sm" onClick={() => decide(r, 'reject')}>Reject</button>
                   <button className="btn btn-primary btn-sm" onClick={() => decide(r, 'approve')}>Approve</button>
+                  <button className="btn btn-ghost btn-sm" style={{ color: '#dc2626' }} onClick={() => handleDelete(r)} title="Delete Request">Delete</button>
                 </div>
               </div>
             ))
@@ -56,19 +79,48 @@ export default function AdminRequestsPanel() {
 
       {decided.length > 0 && (
         <div className="panel">
-          <div className="panel-head"><h3>Past requests</h3></div>
+          <div className="panel-head"><h3>Past requests & Deactivated employees</h3></div>
           <div className="panel-body">
             <table>
-              <thead><tr><th>Name</th><th>Username</th><th>Department</th><th>Status</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Username</th>
+                  <th>Department</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
               <tbody>
-                {decided.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.name}</td>
-                    <td>@{r.username}</td>
-                    <td>{r.department}</td>
-                    <td><span className={`pill pill-${r.status}`}>{r.status}</span></td>
-                  </tr>
-                ))}
+                {decided.map((r) => {
+                  const isDeactivated = r.userStatus === 'inactive' || r.status === 'deactivated';
+                  const isApproved = r.status === 'approved' && !isDeactivated;
+                  return (
+                    <tr key={r.id}>
+                      <td><strong>{r.name}</strong></td>
+                      <td>@{r.username}</td>
+                      <td>{r.department}</td>
+                      <td>
+                        {isDeactivated ? (
+                          <span className="pill" style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', fontWeight: 600 }}>
+                            🚫 Deactivated
+                          </span>
+                        ) : isApproved ? (
+                          <span className="pill pill-completed">
+                            Approved (Active)
+                          </span>
+                        ) : (
+                          <span className={`pill pill-${r.status}`}>{r.status}</span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r)}>
+                          🗑️ Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -77,3 +129,4 @@ export default function AdminRequestsPanel() {
     </div>
   );
 }
+

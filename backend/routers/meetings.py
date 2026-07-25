@@ -34,15 +34,17 @@ class UpdateMeetingRequest(BaseModel):
     description: Optional[str] = None
     agenda: Optional[str] = None
 
+@router.get("")
 @router.get("/")
 def get_meetings(user: dict = Depends(auth_required), db: Session = Depends(get_db)):
     if user.get('role') == 'admin':
         return db.query(Meeting).all()
     else:
         meetings = db.query(Meeting).all()
-        # Employee sees global, department, or internal meetings
-        return [m for m in meetings if m.scope == 'Global' or m.department == user.get('department') or m.type == 'Internal']
+        # Employee sees global, department, or employee meetings with no specific scope
+        return [m for m in meetings if m.scope == 'Global' or m.department == user.get('department') or (m.type == 'employee' and not m.scope)]
 
+@router.post("")
 @router.post("/")
 def create_meeting(req: CreateMeetingRequest, user: dict = Depends(auth_required), db: Session = Depends(get_db)):
     if user.get('role') != 'admin':

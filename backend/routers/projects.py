@@ -26,6 +26,7 @@ class UpdateProjectRequest(BaseModel):
     status: Optional[str] = None
     employeeIds: Optional[list] = None
 
+@router.get("")
 @router.get("/")
 def get_projects(user: dict = Depends(auth_required), db: Session = Depends(get_db)):
     if user.get('role') == 'admin':
@@ -36,6 +37,7 @@ def get_projects(user: dict = Depends(auth_required), db: Session = Depends(get_
         projects = db.query(Project).all()
         return [p for p in projects if user.get('id') in (p.employeeIds or [])]
 
+@router.post("")
 @router.post("/")
 def create_project(req: CreateProjectRequest, user: dict = Depends(auth_required), db: Session = Depends(get_db)):
     new_project = Project(

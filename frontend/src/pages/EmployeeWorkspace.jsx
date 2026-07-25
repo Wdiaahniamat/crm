@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import TaskCard from '../components/TaskCard';
+import AnnouncementsWidget from '../components/AnnouncementsWidget';
 import MeetingsPanel from './MeetingsPanel';
 import CalendarPanel from './CalendarPanel';
 import ChatPanel from './ChatPanel';
@@ -260,36 +261,82 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
     const task = selectedTask;
     const isDone = task.status === 'completed' || task.status === 'Done';
 
-    const handlePmedFileChange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+    const handlePmedFileChange = async (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
       
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        try {
-          const res = await api.put(`/tasks/${task.id}/status`, {
-            status: task.status,
-            pmedName: file.name,
-            pmedData: reader.result,
-            pmedStatus: 'Pending Verification'
-          });
-          setSelectedTask(res.data);
-          loadAll();
-          setNotice('Work completion proof file attached successfully.');
-          setTimeout(() => setNotice(''), 4000);
-        } catch {
-          setNotice('Failed to attach work file.');
-        }
-      };
-      reader.readAsDataURL(file);
+      const fileDataPromises = files.map(file => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            resolve({ name: file.name, data: reader.result });
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+      
+      try {
+        const newPmedFiles = await Promise.all(fileDataPromises);
+        const existingFiles = task.pmedFiles || [];
+        // If there's an old pmedData that isn't in pmedFiles, we could include it, but
+        // for now we'll just merge the pmedFiles array.
+        const allFiles = [...existingFiles, ...newPmedFiles];
+        
+        const res = await api.put(`/tasks/${task.id}/status`, {
+          status: task.status,
+          pmedFiles: allFiles,
+          pmedStatus: 'Pending Verification'
+        });
+        setSelectedTask(res.data);
+        loadAll();
+        setNotice('Work completion proof files attached successfully.');
+        setTimeout(() => setNotice(''), 4000);
+      } catch {
+        setNotice('Failed to attach work files.');
+      }
     };
 
-    const handleViewFile = () => {
-      if (!task.pmedData) return;
+    const handleDeleteFile = async (indexToRemove) => {
+      const existingFiles = task.pmedFiles || [];
+      const updatedFiles = existingFiles.filter((_, idx) => idx !== indexToRemove);
+      try {
+        const res = await api.put(`/tasks/${task.id}/status`, {
+          status: task.status,
+          pmedFiles: updatedFiles,
+          pmedStatus: 'Pending Verification' 
+        });
+        setSelectedTask(res.data);
+        loadAll();
+        setNotice('File removed successfully.');
+        setTimeout(() => setNotice(''), 4000);
+      } catch {
+        setNotice('Failed to remove file.');
+      }
+    };
+
+    const handleDeleteOldFile = async () => {
+      try {
+        const res = await api.put(`/tasks/${task.id}/status`, {
+          status: task.status,
+          pmedName: null,
+          pmedData: null,
+          pmedStatus: 'Pending Verification'
+        });
+        setSelectedTask(res.data);
+        loadAll();
+        setNotice('File removed successfully.');
+        setTimeout(() => setNotice(''), 4000);
+      } catch {
+        setNotice('Failed to remove file.');
+      }
+    };
+
+    const handleViewFile = (data) => {
+      if (!data) return;
       const newTab = window.open();
       if (newTab) {
         newTab.document.write(
-          `<iframe src="${task.pmedData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
+          `<iframe src="${data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
         );
       }
     };
@@ -420,13 +467,50 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
                 Attach your completed work file, document, or proof of task execution for Admin review and verification.
               </p>
               
-              {task.pmedData ? (
+              {task.pmedFiles && task.pmedFiles.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {task.pmedFiles.map((file, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', background: '#f8fafc', padding: '12px 16px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', wordBreak: 'break-all', flex: 1, minWidth: '150px' }}>📄 {file.name || 'Work_Deliverable_Proof'}</span>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <button 
+                          onClick={() => handleViewFile(file.data)}
+                          className="btn btn-ghost btn-sm"
+                          style={{ padding: '4px 10px', fontSize: '12px' }}
+                        >
+                          👁 View File
+                        </button>
+                        <a 
+                          href={file.data} 
+                          download={file.name || 'work_deliverable'} 
+                          className="btn btn-primary btn-sm"
+                          style={{ padding: '4px 10px', fontSize: '12px', textDecoration: 'none' }}
+                        >
+                          ⬇ Download File
+                        </a>
+                        <button
+                          onClick={() => handleDeleteFile(idx)}
+                          className="btn btn-sm"
+                          style={{ padding: '4px 10px', fontSize: '12px', background: '#fee2e2', color: '#b91c1c', border: 'none' }}
+                        >
+                          🗑 Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <label style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--maroon)', fontWeight: 600, alignSelf: 'flex-start' }}>
+                    🔄 Upload Updated / Replaced Work Files
+                    <input type="file" multiple onChange={handlePmedFileChange} style={{ display: 'none' }} />
+                  </label>
+                </div>
+              ) : task.pmedData ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', background: '#f8fafc', padding: '12px 16px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                     <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', wordBreak: 'break-all', flex: 1, minWidth: '150px' }}>📄 {task.pmedName || 'Work_Deliverable_Proof'}</span>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                       <button 
-                        onClick={handleViewFile}
+                        onClick={() => handleViewFile(task.pmedData)}
                         className="btn btn-ghost btn-sm"
                         style={{ padding: '4px 10px', fontSize: '12px' }}
                       >
@@ -440,12 +524,19 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
                       >
                         ⬇ Download File
                       </a>
+                      <button
+                        onClick={handleDeleteOldFile}
+                        className="btn btn-sm"
+                        style={{ padding: '4px 10px', fontSize: '12px', background: '#fee2e2', color: '#b91c1c', border: 'none' }}
+                      >
+                        🗑 Delete
+                      </button>
                     </div>
                   </div>
                   
                   <label style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--maroon)', fontWeight: 600, alignSelf: 'flex-start' }}>
                     🔄 Upload Updated / Replaced Work File
-                    <input type="file" onChange={handlePmedFileChange} style={{ display: 'none' }} />
+                    <input type="file" multiple onChange={handlePmedFileChange} style={{ display: 'none' }} />
                   </label>
                 </div>
               ) : (
@@ -472,6 +563,7 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
                     <span style={{ fontSize: '11px', color: '#94a3b8' }}>Supports documents, images, PDFs, ZIPs, etc.</span>
                     <input 
                       type="file" 
+                      multiple
                       onChange={handlePmedFileChange} 
                       style={{ display: 'none' }} 
                     />
@@ -538,6 +630,7 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
 
       {tab === 'overview' && (
         <>
+          <AnnouncementsWidget readOnly={true} />
           {/* Quick Setup Integration Widget */}
           <div style={{
             background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
@@ -815,7 +908,7 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
 
       {tab === 'meetings' && <MeetingsPanel isEmployeeView />}
 
-      {tab === 'calendar' && <CalendarPanel />}
+      {tab === 'calendar' && <CalendarPanel readOnly={true} />}
 
       {tab === 'chat' && <ChatPanel employeeId={employeeId} isAdminView={isAdminView} onBack={onNavigate ? () => onNavigate('overview') : undefined} />}
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
@@ -11,18 +11,43 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
-  const { login } = useAuth();
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaQuestion, setCaptchaQuestion] = useState('');
+  const [captchaAnswer, setCaptchaAnswer] = useState('');
+  const { user, login } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate(user.role === 'admin' ? '/admin' : '/employee', { replace: true });
+    }
+  }, [user, navigate]);
+
+  const fetchCaptcha = async () => {
+    try {
+      const res = await api.get('/auth/captcha');
+      setCaptchaToken(res.data.token);
+      setCaptchaQuestion(res.data.question);
+      setCaptchaAnswer('');
+    } catch (err) {
+      console.error('Failed to fetch captcha', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchCaptcha();
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const user = await login(username, password);
-      navigate(user.role === 'admin' ? '/admin' : '/employee');
+      const loggedUser = await login(username, password, captchaToken, captchaAnswer);
+      navigate(loggedUser.role === 'admin' ? '/admin' : '/employee', { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Could not log in. Try again.');
+      fetchCaptcha();
     } finally {
       setLoading(false);
     }
@@ -103,6 +128,28 @@ export default function Login() {
                 title={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? '👁' : '🙈'}
+              </button>
+            </div>
+          </div>
+          <div className="field">
+            <label htmlFor="captcha">{captchaQuestion || 'Loading human verification...'}</label>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input 
+                id="captcha"
+                type="text"
+                value={captchaAnswer}
+                onChange={(e) => setCaptchaAnswer(e.target.value)}
+                required
+                placeholder="Enter answer"
+              />
+              <button 
+                type="button" 
+                onClick={fetchCaptcha} 
+                className="btn btn-ghost" 
+                title="Refresh CAPTCHA"
+                style={{ padding: '0 12px' }}
+              >
+                ↻
               </button>
             </div>
           </div>

@@ -10,6 +10,7 @@ from middleware.auth import auth_required
 
 router = APIRouter()
 
+@router.get("")
 @router.get("/")
 def get_attendance(user: dict = Depends(auth_required), db: Session = Depends(get_db)):
     if user.get('role') == 'admin':

@@ -25,10 +25,12 @@ class UpdateEventRequest(BaseModel):
     description: Optional[str] = None
     type: Optional[str] = None
 
+@router.get("")
 @router.get("/")
 def get_events(user: dict = Depends(auth_required), db: Session = Depends(get_db)):
     return db.query(Event).all()
 
+@router.post("")
 @router.post("/")
 def create_event(req: CreateEventRequest, admin: dict = Depends(admin_only), db: Session = Depends(get_db)):
     new_event = Event(

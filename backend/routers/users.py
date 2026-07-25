@@ -3,10 +3,11 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional, List
 import bcrypt
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import User
+from models import User, Request
 from middleware.auth import auth_required, admin_only
 
 router = APIRouter()
@@ -80,6 +81,7 @@ def update_me(req: UpdateMeRequest, user: dict = Depends(auth_required), db: Ses
     db.refresh(target)
     return safe_user(target)
 
+@router.get("")
 @router.get("/")
 def get_all_employees(admin: dict = Depends(admin_only), db: Session = Depends(get_db)):
     employees = db.query(User).filter(User.role == 'employee').all()
@@ -132,6 +134,11 @@ def delete_employee(user_id: str, admin: dict = Depends(admin_only), db: Session
     if not target:
         return JSONResponse(status_code=404, content={"error": "User not found"})
         
+    if target.username:
+        req = db.query(Request).filter(func.lower(Request.username) == target.username.lower()).first()
+        if req:
+            db.delete(req)
+            
     db.delete(target)
     db.commit()
     return {"message": "Employee deleted successfully"}

@@ -17,6 +17,8 @@ router = APIRouter()
 class LoginRequest(BaseModel):
     username: str
     password: str
+    captcha_token: str
+    captcha_answer: str
 
 class ForgotPasswordRequest(BaseModel):
     username: str
@@ -28,8 +30,18 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     username = req.username
     password = req.password
     
+    # Validate CAPTCHA
+    try:
+        decoded_captcha = jwt.decode(req.captcha_token, JWT_SECRET, algorithms=["HS256"])
+        if str(decoded_captcha.get("answer")) != req.captcha_answer:
+            return JSONResponse(status_code=400, content={"error": "Incorrect CAPTCHA answer"})
+        if decoded_captcha.get("exp", 0) < datetime.now(timezone.utc).timestamp():
+            return JSONResponse(status_code=400, content={"error": "CAPTCHA expired"})
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "Invalid or missing CAPTCHA"})
+    
     users = db.query(User).all()
-    user = next((u for u in users if (u.username or '').lower() == username.lower()), None)
+    user = next((u for u in users if (u.username or '').strip().lower() == username.strip().lower()), None)
     
     if not user:
         return JSONResponse(status_code=401, content={"error": "Invalid username or password"})
@@ -80,8 +92,8 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
     users = db.query(User).all()
     user = next((u for u in users if 
-                (u.username or '').lower() == req.username.lower() and 
-                (u.email or '').lower() == req.email.lower()), None)
+                (u.username or '').strip().lower() == req.username.strip().lower() and 
+                (u.email or '').strip().lower() == req.email.strip().lower()), None)
                 
     if not user:
         return JSONResponse(status_code=404, content={"error": "No user found matching that username and email"})
@@ -91,3 +103,28 @@ def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
     db.commit()
     
     return {"message": "Password reset successfully"}
+
+@router.get("/captcha")
+def generate_captcha():
+    import random
+    num1 = random.randint(1, 10)
+    num2 = random.randint(1, 10)
+    operator = random.choice(["+", "-"])
+    
+    if operator == "+":
+        answer = num1 + num2
+        question = f"What is {num1} + {num2}?"
+    else:
+        # Ensure positive result for simplicity
+        if num1 < num2:
+            num1, num2 = num2, num1
+        answer = num1 - num2
+        question = f"What is {num1} - {num2}?"
+        
+    payload = {
+        "answer": answer,
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=5)
+    }
+    token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+    
+    return {"question": question, "token": token}

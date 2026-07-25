@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Shell from '../components/Shell';
 import EmployeeWorkspace from './EmployeeWorkspace';
 import NotificationSettings from './NotificationSettings';
+import CompanyInfoPanel from './CompanyInfoPanel';
 
 const TITLES = {
   overview: 'Overview',
@@ -15,6 +16,7 @@ const TITLES = {
   chat: 'Chat',
   profile: 'My profile',
   'notification-settings': 'Notification settings',
+  'company-info': 'Company Info',
 };
 
 export default function EmployeeDashboard() {
@@ -33,6 +35,7 @@ export default function EmployeeDashboard() {
         { key: 'meetings', label: 'Meetings', icon: '🤝' },
         { key: 'calendar', label: 'Calendar', icon: '📆' },
         { key: 'chat', label: 'Chat', icon: '💬' },
+        { key: 'company-info', label: 'Company Info', icon: '🏢' },
       ],
     },
     {
@@ -48,6 +51,8 @@ export default function EmployeeDashboard() {
     <Shell navGroups={navGroups} activeKey={tab} onNavigate={setTab} title={TITLES[tab]}>
       {tab === 'notification-settings' ? (
         <NotificationSettings />
+      ) : tab === 'company-info' ? (
+        <CompanyInfoPanel />
       ) : (
         <EmployeeWorkspace tab={tab} onNavigate={setTab} />
       )}

@@ -168,15 +168,25 @@ export default function NotificationSettings() {
     try {
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
         try {
-          new Notification('🚀 Test CRM Notification', {
-            body: 'This is an instant test popup from Xebrightech CRM!',
-            icon: '/icon-192.png',
-            tag: 'test-popup-' + Date.now()
-          });
+          if (navigator.serviceWorker) {
+            const reg = await navigator.serviceWorker.ready;
+            await reg.showNotification('🚀 Test CRM Notification', {
+              body: 'This is an instant test popup from Xebrightech CRM!',
+              tag: 'test-popup-' + Date.now(),
+              requireInteraction: true
+            });
+          } else {
+            new Notification('🚀 Test CRM Notification', {
+              body: 'This is an instant test popup from Xebrightech CRM!',
+              tag: 'test-popup-' + Date.now(),
+              requireInteraction: true
+            });
+          }
         } catch (e) {
           console.error('Local notification error:', e);
         }
       }
+      
       const result = await sendTestPushNotification();
       setMessage(`🚀 ${result.message}`);
       setTimeout(() => setMessage(''), 5000);
@@ -234,6 +244,24 @@ export default function NotificationSettings() {
 
       {error && <div className="error-banner" style={{ marginBottom: '16px', background: '#f8d7da', color: '#721c24', padding: '12px', borderRadius: '6px' }}>{error}</div>}
       {message && <div className="success-banner" style={{ marginBottom: '16px', background: '#d4edda', color: '#155724', padding: '12px', borderRadius: '6px' }}>{message}</div>}
+
+      {!pushStatus.supported && (
+        <div className="error-banner" style={{ marginBottom: '16px', background: '#fff5f5', borderLeft: '4px solid #e53e3e', color: '#9b2c2c', padding: '14px 16px', borderRadius: '6px', fontSize: '13.5px' }}>
+          {pushStatus.isInsecureContext ? (
+            <>
+              <strong>🔒 HTTPS Required for Mobile Push Notifications:</strong>
+              <div style={{ marginTop: '4px', lineHeight: '1.4' }}>
+                You are accessing the CRM over an unencrypted local IP address (<code>http://{typeof window !== 'undefined' ? window.location.host : 'ip'}</code>). Mobile Chrome and iOS Safari disable Web Push APIs on HTTP for security.
+              </div>
+              <div style={{ marginTop: '8px', fontSize: '12.5px', color: '#742a2a', background: 'rgba(229, 62, 62, 0.08)', padding: '8px 12px', borderRadius: '4px' }}>
+                💡 <strong>Solution:</strong> To receive mobile push alerts, host/access your site over <strong>HTTPS</strong>, or tap <strong>"Install App on Mobile"</strong> below to run as a native web app!
+              </div>
+            </>
+          ) : (
+            'Push notifications are not supported in this browser.'
+          )}
+        </div>
+      )}
 
       {/* System Integration Card */}
       <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', padding: '20px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>

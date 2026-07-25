@@ -15,7 +15,7 @@ export default function AdminLeavesPanel() {
   useEffect(() => { load(); }, [load]);
 
   async function decide(leave, status) {
-    await api.put(`/leaves/${leave.id}/decision`, { status });
+    await api.put(`/leaves/${leave.id}/status`, { status });
     load();
   }
 

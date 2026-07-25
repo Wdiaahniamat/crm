@@ -26,6 +26,7 @@ class UpdateTaskStatusRequest(BaseModel):
     status: str
     pmedName: Optional[str] = None
     pmedData: Optional[str] = None
+    pmedFiles: Optional[list] = None
     pmedStatus: Optional[str] = None
 
 class UpdateTaskDetailsRequest(BaseModel):
@@ -37,6 +38,7 @@ class UpdateTaskDetailsRequest(BaseModel):
     dueDate: Optional[str] = None
     status: Optional[str] = None
 
+@router.get("")
 @router.get("/")
 def get_tasks(user: dict = Depends(auth_required), db: Session = Depends(get_db)):
     if user.get('role') == 'admin':
@@ -45,6 +47,7 @@ def get_tasks(user: dict = Depends(auth_required), db: Session = Depends(get_db)
         tasks = db.query(Task).filter(Task.assignedTo == user.get('id')).all()
     return tasks
 
+@router.post("")
 @router.post("/")
 def create_task(req: CreateTaskRequest, user: dict = Depends(auth_required), db: Session = Depends(get_db)):
     now_str = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -99,6 +102,8 @@ def update_task_status(task_id: str, req: UpdateTaskStatusRequest, user: dict = 
         target.pmedName = req.pmedName  # type: ignore
     if req.pmedData is not None:
         target.pmedData = req.pmedData  # type: ignore
+    if req.pmedFiles is not None:
+        target.pmedFiles = req.pmedFiles  # type: ignore
     if req.pmedStatus is not None:
         target.pmedStatus = req.pmedStatus  # type: ignore
     

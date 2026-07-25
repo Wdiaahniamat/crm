@@ -116,5 +116,14 @@ def create_notification(db: Session, user_id: str, title: str, content: str, eve
         
     if push_enabled:
         # Deliver real OS native web push notification to user's registered devices!
-        send_web_push_to_user(db, user_id, title, content, notif_type=event_type)
-
+        import threading
+        def push_thread(uid, t, c, et):
+            from database import SessionLocal
+            db_session = SessionLocal()
+            try:
+                send_web_push_to_user(db_session, uid, t, c, notif_type=et)
+            finally:
+                db_session.close()
+                
+        t = threading.Thread(target=push_thread, args=(user_id, title, content, event_type))
+        t.start()

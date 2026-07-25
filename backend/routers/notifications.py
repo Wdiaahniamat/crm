@@ -93,6 +93,7 @@ def test_push_notification(user: dict = Depends(auth_required), db: Session = De
     return {"message": f"Sent test push notification to {count} device(s)"}
 
 
+@router.get("")
 @router.get("/")
 def get_notifications(user: dict = Depends(auth_required), db: Session = Depends(get_db)):
     user_id = user.get("id")

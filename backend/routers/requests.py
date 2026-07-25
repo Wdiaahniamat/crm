@@ -5,6 +5,7 @@ from typing import Optional
 import bcrypt
 import uuid
 from datetime import datetime, timezone
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -21,6 +22,7 @@ class CreateRequest(BaseModel):
     department: Optional[str] = None
     phone: Optional[str] = None
 
+@router.post("")
 @router.post("/")
 def submit_request(req: CreateRequest, db: Session = Depends(get_db)):
     if not req.name or not req.email or not req.username or not req.password:
@@ -50,12 +52,57 @@ def submit_request(req: CreateRequest, db: Session = Depends(get_db)):
     db.add(new_request)
     db.commit()
     
+    # Notify admins about the new account request
+    from utils.notification_helper import create_notification
+    admins = db.query(User).filter(User.role == 'admin').all()
+    for admin in admins:
+        create_notification(
+            db=db,
+            user_id=str(admin.id),
+            title="New Account Request",
+            content=f"{req.name} ({req.username}) has requested an account.",
+            event_type="requests"
+        )
+    
     return JSONResponse(status_code=201, content={"message": "Account request submitted. An admin will review it shortly."})
 
+@router.get("")
 @router.get("/")
 def list_requests(admin: dict = Depends(admin_only), db: Session = Depends(get_db)):
     requests = db.query(Request).all()
-    return [{c.name: getattr(r, c.name) for c in r.__table__.columns if c.name != 'passwordHash'} for r in requests]
+    users = db.query(User).all()
+    users_by_username = {(u.username or '').lower(): u for u in users if u.username}
+    
+    request_usernames = set()
+    result = []
+    
+    for r in requests:
+        if r.username:
+            request_usernames.add(r.username.lower())
+        r_dict = {c.name: getattr(r, c.name) for c in r.__table__.columns if c.name != 'passwordHash'}
+        if r.username and r.username.lower() in users_by_username:
+            u = users_by_username[r.username.lower()]
+            r_dict['userStatus'] = u.status
+            r_dict['userId'] = u.id
+        result.append(r_dict)
+        
+    # Include deactivated employees who may not have a request entry
+    for u in users:
+        if u.role == 'employee' and u.status == 'inactive' and (u.username or '').lower() not in request_usernames:
+            result.append({
+                "id": u.id,
+                "name": u.name,
+                "email": u.email,
+                "username": u.username,
+                "department": u.department or 'General',
+                "phone": u.phone or '',
+                "status": "approved",
+                "userStatus": "inactive",
+                "userId": u.id,
+                "createdAt": u.createdAt
+            })
+            
+    return result
 
 @router.post("/{request_id}/approve")
 def approve_request(request_id: str, admin: dict = Depends(admin_only), db: Session = Depends(get_db)):
@@ -106,3 +153,28 @@ def reject_request(request_id: str, admin: dict = Depends(admin_only), db: Sessi
     db.commit()
     
     return {"message": "Request rejected"}
+
+@router.delete("/{request_id}")
+def delete_request(request_id: str, admin: dict = Depends(admin_only), db: Session = Depends(get_db)):
+    target_req = db.query(Request).filter(Request.id == request_id).first()
+    if target_req:
+        if target_req.username:
+            user = db.query(User).filter(func.lower(User.username) == target_req.username.lower()).first()
+            if user:
+                db.delete(user)
+        db.delete(target_req)
+        db.commit()
+        return {"message": "Account request and employee deleted successfully"}
+        
+    target_user = db.query(User).filter(User.id == request_id).first()
+    if target_user:
+        if target_user.username:
+            req = db.query(Request).filter(func.lower(Request.username) == target_user.username.lower()).first()
+            if req:
+                db.delete(req)
+        db.delete(target_user)
+        db.commit()
+        return {"message": "Employee deleted successfully"}
+        
+    return JSONResponse(status_code=404, content={"error": "Request or user not found"})
+

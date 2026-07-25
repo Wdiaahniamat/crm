@@ -8,6 +8,7 @@ export default function RequestAccount() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState([]);
+  const [isHuman, setIsHuman] = useState(false);
 
   useEffect(() => {
     api.get('/departments')
@@ -117,6 +118,17 @@ export default function RequestAccount() {
               required 
               minLength={6} 
             />
+          </div>
+          <div className="field" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input 
+              type="checkbox" 
+              id="human-verify" 
+              checked={isHuman} 
+              onChange={(e) => setIsHuman(e.target.checked)} 
+              required
+              style={{ width: 'auto', marginBottom: 0 }}
+            />
+            <label htmlFor="human-verify" style={{ marginBottom: 0 }}>I am human</label>
           </div>
           <button className="btn btn-primary btn-block" disabled={loading}>
             {loading ? 'Submitting request…' : 'Submit account request'}

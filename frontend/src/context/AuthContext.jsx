@@ -8,7 +8,7 @@ function syncTokenToServiceWorker(token) {
   if ('serviceWorker' in navigator) {
     const sync = () => {
       if (navigator.serviceWorker.controller) {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+        const apiUrl = import.meta.env.VITE_API_URL || '/api';
         navigator.serviceWorker.controller.postMessage({
           type: 'SET_CONFIG',
           token: token,
@@ -44,8 +44,8 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  async function login(username, password) {
-    const res = await api.post('/auth/login', { username, password });
+  async function login(username, password, captcha_token, captcha_answer) {
+    const res = await api.post('/auth/login', { username, password, captcha_token, captcha_answer });
     localStorage.setItem('crm_token', res.data.token);
     localStorage.setItem('crm_user', JSON.stringify(res.data.user));
     setUser(res.data.user);

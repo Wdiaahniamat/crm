@@ -21,6 +21,7 @@ class CreateLeaveRequest(BaseModel):
 class UpdateLeaveStatusRequest(BaseModel):
     status: str
 
+@router.get("")
 @router.get("/")
 def get_leaves(user: dict = Depends(auth_required), db: Session = Depends(get_db)):
     if user.get('role') == 'admin':
@@ -29,6 +30,7 @@ def get_leaves(user: dict = Depends(auth_required), db: Session = Depends(get_db
         leaves = db.query(Leave).filter(Leave.employeeId == user.get('id')).all()
     return leaves
 
+@router.post("")
 @router.post("/")
 def create_leave(req: CreateLeaveRequest, user: dict = Depends(auth_required), db: Session = Depends(get_db)):
     new_leave = Leave(

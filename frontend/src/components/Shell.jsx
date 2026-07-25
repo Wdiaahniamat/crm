@@ -2,6 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../api';
+import Modal from './Modal';
 
 import { subscribeToPushNotifications } from '../utils/pushNotifications';
 
@@ -19,6 +20,7 @@ export default function Shell({ navGroups, activeKey, onNavigate, title, imperso
 
   const [notifications, setNotifications] = useState([]);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const prevNotifIdsRef = useRef(new Set());
   const isInitialLoadRef = useRef(true);
@@ -97,6 +99,26 @@ export default function Shell({ navGroups, activeKey, onNavigate, title, imperso
       console.error(err);
     }
   };
+  // Intercept mobile browser back button to prevent accidental logout
+  useEffect(() => {
+    const handlePopState = (e) => {
+      if (activeKey !== 'overview') {
+        e.preventDefault();
+        window.history.pushState(null, '', window.location.href);
+        onNavigate('overview');
+      } else {
+        e.preventDefault();
+        window.history.pushState(null, '', window.location.href);
+        setShowLogoutConfirm(true);
+      }
+    };
+
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [activeKey, onNavigate]);
 
   function toggleCollapse() {
     setIsCollapsed((prev) => {
@@ -107,8 +129,12 @@ export default function Shell({ navGroups, activeKey, onNavigate, title, imperso
   }
 
   function handleLogout() {
+    setShowLogoutConfirm(true);
+  }
+
+  function confirmLogout() {
     logout();
-    navigate('/login');
+    navigate('/login', { replace: true });
   }
 
   const displayName = impersonating ? impersonating.name : user?.name;
@@ -121,7 +147,7 @@ export default function Shell({ navGroups, activeKey, onNavigate, title, imperso
         <div className="sidebar-overlay-backdrop" onClick={() => setIsMobileOpen(false)} />
       )}
 
-      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`} style={{ overflowY: 'auto' }}>
         <div className="brand">
           <div className="brand-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px' }}>
             <img 
@@ -226,8 +252,13 @@ export default function Shell({ navGroups, activeKey, onNavigate, title, imperso
               </button>
 
               {showNotifDropdown && (
-                <div
-                  className="notif-dropdown"
+                <>
+                  <div 
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }} 
+                    onClick={() => setShowNotifDropdown(false)} 
+                  />
+                  <div
+                    className="notif-dropdown"
                   style={{
                     position: 'absolute',
                     right: 0,
@@ -278,10 +309,39 @@ export default function Shell({ navGroups, activeKey, onNavigate, title, imperso
                         No notifications yet
                       </div>
                     ) : (
-                      notifications.map((n) => (
+                      notifications.map((n) => {
+                        const handleNotificationClick = (n) => {
+                          markAsRead(n.id);
+                          setShowNotifDropdown(false);
+                          
+                          let target = null;
+                          const type = n.type || '';
+                          
+                          if (type.includes('chat') || type.includes('mention') || type.includes('message')) {
+                            target = 'chat';
+                          } else if (type.includes('meeting')) {
+                            target = 'meetings';
+                          } else if (type.includes('event')) {
+                            target = 'calendar';
+                          } else if (type.includes('leave') || type.includes('attendance')) {
+                            target = navGroups.some(g => g.items.some(i => i.key === 'leaves')) ? 'leaves' : 'attendance';
+                          } else if (type.includes('task') || type.includes('comment')) {
+                            target = navGroups.some(g => g.items.some(i => i.key === 'tasks')) ? 'tasks' : 'all-tasks';
+                          } else if (type.includes('project') || type.includes('client')) {
+                            target = navGroups.some(g => g.items.some(i => i.key === 'admin-business-console')) ? 'admin-business-console' : 'overview';
+                          } else if (type.includes('request')) {
+                            target = 'requests';
+                          }
+                          
+                          if (target) {
+                            onNavigate(target);
+                          }
+                        };
+                        
+                        return (
                         <div
                           key={n.id}
-                          onClick={() => markAsRead(n.id)}
+                          onClick={() => handleNotificationClick(n)}
                           style={{
                             padding: '12px 16px',
                             borderBottom: '1px solid #f1f5f9',
@@ -304,7 +364,8 @@ export default function Shell({ navGroups, activeKey, onNavigate, title, imperso
                             {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
 
@@ -331,6 +392,7 @@ export default function Shell({ navGroups, activeKey, onNavigate, title, imperso
                     Configure Preferences ⚙️
                   </button>
                 </div>
+                </>
               )}
             </div>
 
@@ -343,6 +405,40 @@ export default function Shell({ navGroups, activeKey, onNavigate, title, imperso
         </div>
         <div className="content">{children}</div>
       </div>
+      
+      {/* Mobile Bottom Navigation */}
+      <nav className="mobile-bottom-nav">
+        {navGroups.flatMap(g => g.items).slice(0, 4).map(item => (
+          <button
+            key={item.key}
+            className={`mobile-nav-item ${activeKey === item.key ? 'active' : ''}`}
+            onClick={() => onNavigate(item.key)}
+          >
+            <span className="mobile-nav-icon">{item.icon}</span>
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {showLogoutConfirm && (
+        <Modal title="Confirm Logout" onClose={() => setShowLogoutConfirm(false)}>
+          <p style={{ margin: '16px 0', color: 'var(--slate-600, #475569)', fontSize: '14px' }}>
+            Are you sure you want to log out of your dashboard?
+          </p>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
+            <button className="btn btn-ghost" onClick={() => setShowLogoutConfirm(false)}>
+              No, Stay Logged In
+            </button>
+            <button 
+              className="btn btn-primary" 
+              style={{ background: 'var(--maroon, #800000)', borderColor: 'var(--maroon, #800000)' }} 
+              onClick={confirmLogout}
+            >
+              Yes, Log Out
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
