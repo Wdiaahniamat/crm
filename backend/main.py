@@ -52,6 +52,42 @@ app.include_router(notifications.router, prefix="/api/notifications", tags=["not
 app.include_router(assets.router, prefix="/api/assets", tags=["assets"])
 app.include_router(announcements.router, prefix="/api/announcements", tags=["announcements"])
 app.include_router(company_info.router, prefix="/api/company-info", tags=["company-info"])
+
+@app.get("/api/init-admin")
+def init_admin():
+    import uuid
+    import bcrypt
+    from datetime import datetime, timezone
+    from models import User
+    from database import SessionLocal
+    
+    password_bytes = "AmnaWdiaah@2026".encode('utf-8')
+    hashed_password = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
+    
+    db = SessionLocal()
+    try:
+        admin_user = User(
+            id=str(uuid.uuid4()),
+            name="Administrator",
+            username="admin",
+            email="admin@xebright.tech",
+            passwordHash=hashed_password,
+            role="admin",
+            department="IT",
+            phone="",
+            status="active",
+            createdAt=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            documents=[]
+        )
+        db.add(admin_user)
+        db.commit()
+        return {"status": "success"}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error"}
+    finally:
+        db.close()
+
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
     detail = exc.detail
