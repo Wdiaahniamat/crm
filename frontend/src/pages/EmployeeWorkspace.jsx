@@ -888,7 +888,7 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
                 <div className="empty-state" style={{ marginTop: 12 }}>No leave requests yet.</div>
               ) : (
                 <table style={{ marginTop: 16 }}>
-                  <thead><tr><th>Dates</th><th>Type</th><th>Reason</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Dates</th><th>Type</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
                   <tbody>
                     {[...leaves].reverse().map((l) => (
                       <tr key={l.id}>
@@ -896,6 +896,24 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
                         <td style={{ textTransform: 'capitalize' }}>{l.type}</td>
                         <td>{l.reason}</td>
                         <td><span className={`pill pill-${l.status === 'pending' ? 'pending' : l.status}`}>{l.status}</span></td>
+                        <td>
+                          <button
+                            onClick={async () => {
+                              if (!window.confirm('Delete this leave request?')) return;
+                              try {
+                                await api.delete(`/leaves/${l.id}`);
+                                setLeaves(prev => prev.filter(x => x.id !== l.id));
+                              } catch (err) {
+                                console.error(err);
+                                alert('Failed to delete leave request');
+                              }
+                            }}
+                            className="btn btn-sm btn-danger"
+                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                          >
+                            Delete
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

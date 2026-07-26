@@ -89,6 +89,15 @@ export default function Shell({ navGroups, activeKey, onNavigate, title, imperso
     }
   };
 
+  const clearAllNotifications = async () => {
+    try {
+      await api.delete('/notifications/clear-all');
+      setNotifications([]);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const markAsRead = async (id) => {
     try {
       await api.put(`/notifications/${id}/read`);
@@ -286,21 +295,38 @@ export default function Shell({ navGroups, activeKey, onNavigate, title, imperso
                     }}
                   >
                     <strong style={{ fontSize: '14px', color: '#1e293b' }}>Notifications</strong>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={markAllAsRead}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--maroon, #800000)',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                          fontWeight: 600,
-                        }}
-                      >
-                        Mark all read
-                      </button>
-                    )}
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={markAllAsRead}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--maroon, #800000)',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                      {notifications.length > 0 && (
+                        <button
+                          onClick={clearAllNotifications}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#b91c1c',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div style={{ maxHeight: '280px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>

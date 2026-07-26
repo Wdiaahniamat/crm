@@ -24,7 +24,7 @@ def notify_meeting_users(db: Session, meeting: Meeting, title: str, content: str
             
         if should_notify:
             try:
-                create_notification(db, u.id, title, content, "meeting_reminder")
+                create_notification(db, str(u.id), title, content, "meeting_reminder")
             except Exception as err:
                 print(f"[MEETING NOTIF ERROR] Failed to send notif to {u.id}: {err}")
 

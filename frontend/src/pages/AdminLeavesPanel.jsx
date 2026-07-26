@@ -19,6 +19,17 @@ export default function AdminLeavesPanel() {
     load();
   }
 
+  async function deleteLeave(id) {
+    if (!window.confirm('Delete this leave request?')) return;
+    try {
+      await api.delete(`/leaves/${id}`);
+      load();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete leave request');
+    }
+  }
+
   if (loading) return <div className="empty-state">Loading leave requests…</div>;
 
   const pending = leaves.filter((l) => l.status === 'pending');
@@ -43,7 +54,8 @@ export default function AdminLeavesPanel() {
                     <td>{l.reason}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <button className="btn btn-danger btn-sm" onClick={() => decide(l, 'rejected')}>Reject</button>{' '}
-                      <button className="btn btn-primary btn-sm" onClick={() => decide(l, 'approved')}>Approve</button>
+                      <button className="btn btn-primary btn-sm" onClick={() => decide(l, 'approved')}>Approve</button>{' '}
+                      <button className="btn btn-ghost btn-sm" style={{color: '#dc2626'}} onClick={() => deleteLeave(l.id)}>Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -58,13 +70,16 @@ export default function AdminLeavesPanel() {
           <div className="panel-head"><h3>Leave history</h3></div>
           <div className="panel-body">
             <table>
-              <thead><tr><th>Employee</th><th>Dates</th><th>Status</th></tr></thead>
+              <thead><tr><th>Employee</th><th>Dates</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody>
                 {decided.map((l) => (
                   <tr key={l.id}>
                     <td>{l.employeeName}</td>
                     <td>{l.startDate} → {l.endDate}</td>
                     <td><span className={`pill pill-${l.status}`}>{l.status}</span></td>
+                    <td>
+                      <button className="btn btn-danger btn-sm" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => deleteLeave(l.id)}>Delete</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

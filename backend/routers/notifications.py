@@ -119,6 +119,13 @@ def read_all_notifications(user: dict = Depends(auth_required), db: Session = De
     db.commit()
     return {"message": "All notifications marked as read"}
 
+@router.delete("/clear-all")
+def clear_all_notifications(user: dict = Depends(auth_required), db: Session = Depends(get_db)):
+    user_id = user.get("id")
+    db.query(Notification).filter(Notification.userId == user_id).delete()
+    db.commit()
+    return {"message": "All notifications cleared"}
+
 @router.put("/{notification_id}/read")
 def read_notification(notification_id: str, user: dict = Depends(auth_required), db: Session = Depends(get_db)):
     user_id = user.get("id")
