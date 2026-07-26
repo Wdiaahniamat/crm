@@ -7,8 +7,26 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Meeting
+from models import Meeting, User
 from middleware.auth import auth_required
+from utils.notification_helper import create_notification
+
+def notify_meeting_users(db: Session, meeting: Meeting, title: str, content: str):
+    users = db.query(User).filter(User.role != 'admin').all()
+    for u in users:
+        should_notify = False
+        if meeting.scope == 'Global':
+            should_notify = True
+        elif meeting.department and meeting.department == u.department:
+            should_notify = True
+        elif meeting.type == 'employee' and not meeting.scope:
+            should_notify = True
+            
+        if should_notify:
+            try:
+                create_notification(db, u.id, title, content, "meeting_reminder")
+            except Exception as err:
+                print(f"[MEETING NOTIF ERROR] Failed to send notif to {u.id}: {err}")
 
 router = APIRouter()
 
@@ -66,6 +84,9 @@ def create_meeting(req: CreateMeetingRequest, user: dict = Depends(auth_required
     db.add(new_meeting)
     db.commit()
     db.refresh(new_meeting)
+    
+    notify_meeting_users(db, new_meeting, "New Meeting Scheduled", f"A new meeting '{new_meeting.title}' has been scheduled for {new_meeting.date} at {new_meeting.time}.")
+    
     return new_meeting
 
 @router.put("/{meeting_id}")
@@ -89,6 +110,9 @@ def update_meeting(meeting_id: str, req: UpdateMeetingRequest, user: dict = Depe
     
     db.commit()
     db.refresh(target)
+    
+    notify_meeting_users(db, target, "Meeting Updated", f"The meeting '{target.title}' has been updated.")
+    
     return target
 
 @router.delete("/{meeting_id}")
@@ -100,6 +124,10 @@ def delete_meeting(meeting_id: str, user: dict = Depends(auth_required), db: Ses
     if not target:
         return JSONResponse(status_code=404, content={"error": "Meeting not found"})
         
+    title = target.title
     db.delete(target)
     db.commit()
+    
+    notify_meeting_users(db, target, "Meeting Canceled", f"The meeting '{title}' has been canceled.")
+    
     return {"message": "Meeting deleted"}
