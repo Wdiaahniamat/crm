@@ -434,6 +434,22 @@ export default function ChatPanel({ employeeId, onBack }) {
             </div>
           </div>
           <div className="chat-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+            <button
+              className="btn btn-sm btn-ghost"
+              style={{ color: 'var(--maroon)', borderColor: 'var(--maroon)' }}
+              onClick={async () => {
+                if (window.confirm(`Are you sure you want to clear the entire chat history with ${selectedTarget.name}? This will delete all messages for everyone and cannot be undone.`)) {
+                  try {
+                    await api.delete(`/chat/clear/${selectedTarget.id}`);
+                    setMessages([]);
+                  } catch {
+                    setError('Could not clear chat.');
+                  }
+                }
+              }}
+            >
+              Clear Chat
+            </button>
             {selectedTarget.isGroup && user?.role === 'admin' && (
               <button 
                 className="btn btn-sm btn-ghost" 

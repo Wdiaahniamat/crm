@@ -224,6 +224,23 @@ def delete_message(req: DeleteMessageRequest, db: Session = Depends(get_db), cur
     db.commit()
     return {"status": "ok", "id": req.id}
 
+@router.delete("/clear/{target_id}")
+def clear_chat(target_id: str, db: Session = Depends(get_db), current_user: dict = Depends(auth_required)):
+    user_id = current_user.get('id')
+    
+    group = db.query(ChatGroup).filter(ChatGroup.id == target_id).first()
+    if group:
+        db.query(ChatMessage).filter(ChatMessage.channel == target_id).delete()
+    else:
+        db.query(ChatMessage).filter(
+            ((ChatMessage.senderId == user_id) & (ChatMessage.receiverId == target_id) & (ChatMessage.channel == None)) |
+            ((ChatMessage.senderId == target_id) & (ChatMessage.receiverId == user_id) & (ChatMessage.channel == None))
+        ).delete()
+    
+    db.commit()
+    return {"status": "ok"}
+
+
 @router.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str, db: Session = Depends(get_db)):
     await manager.connect(websocket, user_id)
@@ -290,6 +307,16 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, db: Session = D
                         await manager.send_personal_message(msg_dict, user_id)
                         if receiver_id and receiver_id != user_id:
                             await manager.send_personal_message(msg_dict, str(receiver_id))
+                            
+                            try:
+                                from utils.notification_helper import create_notification
+                                user_record = db.query(User).filter(User.id == user_id).first()
+                                sender_name = user_record.name if user_record and user_record.name else "Someone"
+                                notif_title = f"New message from {sender_name}"
+                                notif_body = content if content else f"Sent an attachment: {attachment_name or 'file'}"
+                                create_notification(db, str(receiver_id), notif_title, notif_body, "chat_message")
+                            except Exception as err:
+                                print(f"[CHAT NOTIF ERROR] Failed to send chat notification in ws: {err}")
 
             elif action == "edit":
                 msg_id = data.get("id")
