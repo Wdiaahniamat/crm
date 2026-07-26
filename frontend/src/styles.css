@@ -1442,12 +1442,21 @@ tr:hover td {
     gap: 8px;
   }
 
-  /* Make message search smaller on mobile to avoid overflow */
-  .chat-message-search input {
-    width: 120px !important;
+  .chat-header > div:first-child {
+    flex: 1 1 auto !important;
   }
-  .chat-message-search input:focus {
-    width: 150px !important;
+
+  .chat-header-actions {
+    flex: 0 0 auto !important;
+  }
+
+  .chat-message-search {
+    flex: 1 1 100% !important;
+    margin-top: 4px;
+  }
+
+  .chat-message-search input {
+    width: 100% !important;
   }
 
   /* Reduce chat messages padding on mobile */
