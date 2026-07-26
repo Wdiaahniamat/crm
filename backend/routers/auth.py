@@ -6,6 +6,7 @@ import jwt
 from datetime import datetime, timedelta, timezone
 import os
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Any
 
 from database import get_db
@@ -40,8 +41,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     except Exception:
         return JSONResponse(status_code=400, content={"error": "Invalid or missing CAPTCHA"})
     
-    users = db.query(User).all()
-    user = next((u for u in users if (u.username or '').strip().lower() == username.strip().lower()), None)
+    user = db.query(User).filter(func.lower(User.username) == username.strip().lower()).first()
     
     if not user:
         return JSONResponse(status_code=401, content={"error": "Invalid username or password"})
@@ -90,10 +90,10 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/forgot-password")
 def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    users = db.query(User).all()
-    user = next((u for u in users if 
-                (u.username or '').strip().lower() == req.username.strip().lower() and 
-                (u.email or '').strip().lower() == req.email.strip().lower()), None)
+    user = db.query(User).filter(
+        func.lower(User.username) == req.username.strip().lower(),
+        func.lower(User.email) == req.email.strip().lower()
+    ).first()
                 
     if not user:
         return JSONResponse(status_code=404, content={"error": "No user found matching that username and email"})
