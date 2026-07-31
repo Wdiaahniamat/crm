@@ -175,6 +175,8 @@ class CompanyAsset(Base):
     notes = Column(String, nullable=True)
     status = Column(String)
     folder = Column(String, default="Company Data")
+    fileName = Column(String, nullable=True)
+    fileData = Column(String, nullable=True)
     updatedAt = Column(String)
 
 class PushSubscription(Base):

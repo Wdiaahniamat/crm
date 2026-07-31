@@ -32,7 +32,9 @@ export default function AdminAssetsPanel() {
     value: '',
     notes: '',
     status: 'Active',
-    folder: 'Company Data'
+    folder: 'Company Data',
+    fileName: '',
+    fileData: ''
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -63,6 +65,19 @@ export default function AdminAssetsPanel() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      setForm((prev) => ({ ...prev, fileName: '', fileData: '' }));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setForm((prev) => ({ ...prev, fileName: file.name, fileData: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const openAddModal = () => {
     setEditingAsset(null);
     setForm({
@@ -73,7 +88,9 @@ export default function AdminAssetsPanel() {
       value: '',
       notes: '',
       status: 'Active',
-      folder: currentFolder
+      folder: currentFolder,
+      fileName: '',
+      fileData: ''
     });
     setError('');
     setShowModal(true);
@@ -90,7 +107,9 @@ export default function AdminAssetsPanel() {
       value: asset.value,
       notes: asset.notes || '',
       status: asset.status || 'Active',
-      folder: asset.folder || 'Company Data'
+      folder: asset.folder || 'Company Data',
+      fileName: asset.fileName || '',
+      fileData: asset.fileData || ''
     });
     setError('');
     setShowModal(true);
@@ -115,7 +134,9 @@ export default function AdminAssetsPanel() {
       value: form.value.trim(),
       notes: form.notes.trim(),
       status: form.status,
-      folder: form.folder
+      folder: form.folder,
+      fileName: form.fileName,
+      fileData: form.fileData
     };
 
     try {
@@ -286,6 +307,13 @@ export default function AdminAssetsPanel() {
                   </button>
                 </div>
 
+                {asset.fileName && (
+                  <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📎 {asset.fileName}</span>
+                    <a href={asset.fileData} download={asset.fileName} className="btn btn-primary btn-sm" style={{ padding: '4px 10px', fontSize: '11px', textDecoration: 'none', background: 'var(--maroon)' }}>Download</a>
+                  </div>
+                )}
+
                 {/* Additional Notes */}
                 {asset.notes && (
                   <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', background: '#fafafb', padding: '10px', borderRadius: '6px', borderLeft: '3px solid var(--border)' }}>
@@ -409,6 +437,17 @@ export default function AdminAssetsPanel() {
                 value={form.notes} 
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
               />
+            </div>
+
+            <div className="field">
+              <label>Attachment (Optional)</label>
+              {form.fileName && (
+                <div style={{ fontSize: '13px', marginBottom: '8px', padding: '8px', background: '#f8fafc', border: '1px solid var(--border)', borderRadius: '4px' }}>
+                  📎 {form.fileName}
+                  <button type="button" onClick={() => setForm({ ...form, fileName: '', fileData: '' })} style={{ marginLeft: '8px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>✖ Remove</button>
+                </div>
+              )}
+              <input type="file" onChange={handleFileChange} />
             </div>
 
             <div className="modal-actions" style={{ marginTop: '20px' }}>

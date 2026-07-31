@@ -20,6 +20,8 @@ class CreateAssetRequest(BaseModel):
     notes: Optional[str] = ""
     status: Optional[str] = "Active"
     folder: Optional[str] = "Company Data"
+    fileName: Optional[str] = None
+    fileData: Optional[str] = None
 
 class UpdateAssetRequest(BaseModel):
     companyName: Optional[str] = None
@@ -29,6 +31,8 @@ class UpdateAssetRequest(BaseModel):
     notes: Optional[str] = None
     status: Optional[str] = None
     folder: Optional[str] = None
+    fileName: Optional[str] = None
+    fileData: Optional[str] = None
 
 @router.get("/")
 def get_assets(user: dict = Depends(auth_required), db: Session = Depends(get_db)):
@@ -48,6 +52,8 @@ def create_asset(req: CreateAssetRequest, user: dict = Depends(auth_required), d
         notes=req.notes,
         status=req.status,
         folder=req.folder,
+        fileName=req.fileName,
+        fileData=req.fileData,
         updatedAt=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     )
     db.add(new_asset)
@@ -70,6 +76,8 @@ def update_asset(asset_id: str, req: UpdateAssetRequest, user: dict = Depends(au
     if req.notes is not None: target.notes = req.notes  # type: ignore
     if req.status is not None: target.status = req.status  # type: ignore
     if req.folder is not None: target.folder = req.folder  # type: ignore
+    if req.fileName is not None: target.fileName = req.fileName  # type: ignore
+    if req.fileData is not None: target.fileData = req.fileData  # type: ignore
     
     target.updatedAt = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")  # type: ignore
     db.commit()
