@@ -19,6 +19,7 @@ export default function AdminAssetsPanel() {
   const [typeFilter, setTypeFilter] = useState('');
   const [companyFilter, setCompanyFilter] = useState('');
   const [copiedId, setCopiedId] = useState(null);
+  const [currentFolder, setCurrentFolder] = useState('Company Data');
 
   // Modal forms state
   const [showModal, setShowModal] = useState(false);
@@ -30,7 +31,8 @@ export default function AdminAssetsPanel() {
     name: '',
     value: '',
     notes: '',
-    status: 'Active'
+    status: 'Active',
+    folder: 'Company Data'
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -70,7 +72,8 @@ export default function AdminAssetsPanel() {
       name: '',
       value: '',
       notes: '',
-      status: 'Active'
+      status: 'Active',
+      folder: currentFolder
     });
     setError('');
     setShowModal(true);
@@ -86,7 +89,8 @@ export default function AdminAssetsPanel() {
       name: asset.name,
       value: asset.value,
       notes: asset.notes || '',
-      status: asset.status || 'Active'
+      status: asset.status || 'Active',
+      folder: asset.folder || 'Company Data'
     });
     setError('');
     setShowModal(true);
@@ -110,7 +114,8 @@ export default function AdminAssetsPanel() {
       name: form.name.trim(),
       value: form.value.trim(),
       notes: form.notes.trim(),
-      status: form.status
+      status: form.status,
+      folder: form.folder
     };
 
     try {
@@ -147,8 +152,9 @@ export default function AdminAssetsPanel() {
     
     const matchesType = !typeFilter || asset.assetType === typeFilter;
     const matchesCompany = !companyFilter || asset.companyName === companyFilter;
+    const matchesFolder = (asset.folder || 'Company Data') === currentFolder;
 
-    return matchesSearch && matchesType && matchesCompany;
+    return matchesSearch && matchesType && matchesCompany && matchesFolder;
   });
 
   // Get unique companies list for filters
@@ -159,7 +165,7 @@ export default function AdminAssetsPanel() {
   return (
     <div>
       {/* Header and Add button */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <p style={{ color: 'var(--text-muted)', fontSize: '13.5px', margin: 0 }}>
             Central repository for social media handles, server credentials, and digital assets.
@@ -168,6 +174,29 @@ export default function AdminAssetsPanel() {
         <button className="btn btn-primary" onClick={openAddModal} style={{ background: 'var(--maroon)' }}>
           + Add New Asset
         </button>
+      </div>
+
+      {/* Folders Navigation */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', borderBottom: '2px solid var(--border)', paddingBottom: '12px' }}>
+        {['Company Data', 'Employees Data', 'Tasks Data'].map(folder => (
+          <button
+            key={folder}
+            onClick={() => setCurrentFolder(folder)}
+            style={{
+              padding: '8px 16px',
+              fontSize: '14px',
+              fontWeight: 600,
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              background: currentFolder === folder ? 'var(--maroon)' : '#f1f5f9',
+              color: currentFolder === folder ? '#fff' : '#475569',
+              transition: 'all 0.2s'
+            }}
+          >
+            {folder === 'Company Data' ? '🏢 ' : folder === 'Employees Data' ? '👥 ' : '📋 '}{folder}
+          </button>
+        ))}
       </div>
 
       {/* Filters bar */}
@@ -292,6 +321,17 @@ export default function AdminAssetsPanel() {
         <Modal title={editingAsset ? 'Edit Asset' : 'Add Company Asset'} onClose={() => setShowModal(false)}>
           {error && <div className="error-banner" style={{ marginBottom: '16px' }}>{error}</div>}
           <form onSubmit={handleSubmit}>
+            <div className="field">
+              <label>Folder Location</label>
+              <select 
+                value={form.folder} 
+                onChange={(e) => setForm({ ...form, folder: e.target.value })}
+              >
+                <option value="Company Data">Company Data</option>
+                <option value="Employees Data">Employees Data</option>
+                <option value="Tasks Data">Tasks Data</option>
+              </select>
+            </div>
             <div className="field-row">
               <div className="field">
                 <label>Company Ownership</label>
