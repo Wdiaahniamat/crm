@@ -18,7 +18,10 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
   const [leaves, setLeaves] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingTasks, setLoadingTasks] = useState(true);
+  const [loadingLeaves, setLoadingLeaves] = useState(true);
+  const [loadingAttendance, setLoadingAttendance] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -121,33 +124,39 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
     'Pending': { bg: '#eef2ff', color: '#4f46e5' },
   };
 
-  const loadAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      const query = isAdminView ? { params: { employeeId: targetId } } : {};
-      const [taskRes, leaveRes, attRes, profileRes] = await Promise.all([
-        api.get('/tasks', query),
-        api.get('/leaves', query),
-        api.get('/attendance', query),
-        isAdminView ? api.get(`/users/${targetId}`) : api.get('/users/me'),
-      ]);
-      setTasks(taskRes.data);
-      setLeaves(leaveRes.data);
-      setAttendance(attRes.data);
-      setProfile(profileRes.data);
-      
-      // Update selected task reference if open to reflect status/pmed changes
-      if (selectedTask) {
-        const freshTask = taskRes.data.find(t => t.id === selectedTask.id);
-        if (freshTask) {
-          setSelectedTask(freshTask);
+  const loadAll = useCallback(() => {
+    const query = isAdminView ? { params: { employeeId: targetId } } : {};
+    
+    setLoadingTasks(true);
+    api.get('/tasks', query)
+      .then(taskRes => {
+        setTasks(taskRes.data);
+        if (selectedTask) {
+          const freshTask = taskRes.data.find(t => t.id === selectedTask.id);
+          if (freshTask) setSelectedTask(freshTask);
         }
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'Could not load data.');
-    } finally {
-      setLoading(false);
-    }
+      })
+      .catch(err => setError(err.response?.data?.error || 'Could not load tasks.'))
+      .finally(() => setLoadingTasks(false));
+
+    setLoadingLeaves(true);
+    api.get('/leaves', query)
+      .then(res => setLeaves(res.data))
+      .catch(err => console.error('Leaves error:', err))
+      .finally(() => setLoadingLeaves(false));
+
+    setLoadingAttendance(true);
+    api.get('/attendance', query)
+      .then(res => setAttendance(res.data))
+      .catch(err => console.error('Attendance error:', err))
+      .finally(() => setLoadingAttendance(false));
+
+    setLoadingProfile(true);
+    const profileEndpoint = isAdminView ? `/users/${targetId}` : '/users/me';
+    api.get(profileEndpoint)
+      .then(res => setProfile(res.data))
+      .catch(err => console.error('Profile error:', err))
+      .finally(() => setLoadingProfile(false));
   }, [targetId, isAdminView]); // eslint-disable-next-line react-hooks/exhaustive-deps
 
   useEffect(() => { loadAll(); }, [loadAll]);
@@ -249,7 +258,7 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
     loadAll();
   }
 
-  if (loading) return <div className="empty-state">Loading…</div>;
+  if (loadingProfile && !profile) return <div className="empty-state">Loading Profile…</div>;
   if (error) return <div className="error-banner">{error}</div>;
 
   const incomplete = tasks.filter((t) => t.status !== 'completed');
@@ -733,15 +742,17 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
           </div>
 
           <div className="stat-grid">
-            <div className="stat-card"><div className="num">{tasks.length}</div><div className="label">Total tasks</div></div>
-            <div className="stat-card"><div className="num">{incomplete.length}</div><div className="label">Incomplete</div></div>
-            <div className="stat-card"><div className="num">{completed.length}</div><div className="label">Completed</div></div>
-            <div className="stat-card"><div className="num">{leaves.filter((l) => l.status === 'pending').length}</div><div className="label">Leave requests pending</div></div>
+            <div className="stat-card"><div className="num">{loadingTasks ? '...' : tasks.length}</div><div className="label">Total tasks</div></div>
+            <div className="stat-card"><div className="num">{loadingTasks ? '...' : incomplete.length}</div><div className="label">Incomplete</div></div>
+            <div className="stat-card"><div className="num">{loadingTasks ? '...' : completed.length}</div><div className="label">Completed</div></div>
+            <div className="stat-card"><div className="num">{loadingLeaves ? '...' : leaves.filter((l) => l.status === 'pending').length}</div><div className="label">Leave requests pending</div></div>
           </div>
           <div className="panel">
             <div className="panel-head"><h3>Needs attention</h3></div>
             <div className="panel-body">
-              {incomplete.length === 0 ? (
+              {loadingTasks ? (
+                <div className="empty-state">Loading tasks...</div>
+              ) : incomplete.length === 0 ? (
                 <div className="empty-state"><div className="glyph">✓</div>All caught up — no incomplete tasks.</div>
               ) : (
                 <div className="task-grid">
@@ -759,7 +770,9 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
         <div className="panel">
           <div className="panel-head"><h3>Incomplete tasks</h3></div>
           <div className="panel-body">
-            {incomplete.length === 0 ? (
+            {loadingTasks ? (
+              <div className="empty-state">Loading tasks...</div>
+            ) : incomplete.length === 0 ? (
               <div className="empty-state"><div className="glyph">✓</div>Nothing pending right now.</div>
             ) : (
               <div className="task-grid">
