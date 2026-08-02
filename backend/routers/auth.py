@@ -41,7 +41,10 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     except Exception:
         return JSONResponse(status_code=400, content={"error": "Invalid or missing CAPTCHA"})
     
-    user = db.query(User).filter(func.lower(User.username) == username.strip().lower()).first()
+    user = db.query(User).filter(
+        (func.lower(User.username) == username.strip().lower()) |
+        (func.lower(User.email) == username.strip().lower())
+    ).first()
     
     if not user:
         return JSONResponse(status_code=401, content={"error": "Invalid username or password"})

@@ -34,8 +34,11 @@ def submit_request(req: CreateRequest, db: Session = Depends(get_db)):
     username_taken = any((u.username or '').lower() == req.username.lower() for u in users) or \
                      any((r.username or '').lower() == req.username.lower() and r.status == 'pending' for r in requests)
                      
-    if username_taken:
-        return JSONResponse(status_code=409, content={"error": "That username is already in use or pending approval"})
+    email_taken = any((u.email or '').lower() == req.email.lower() for u in users) or \
+                  any((r.email or '').lower() == req.email.lower() and r.status == 'pending' for r in requests)
+                     
+    if username_taken or email_taken:
+        return JSONResponse(status_code=409, content={"error": "That username or email is already in use or pending approval"})
         
     new_request = Request(
         id=str(uuid.uuid4()),
