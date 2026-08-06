@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '../api';
 import { supabase } from '../supabaseClient';
+import { uploadWithTus } from '../utils/uploadUtils';
 import Modal from '../components/Modal';
 import { downloadFileFromDataUrl } from '../utils/downloadUtils';
 
@@ -75,17 +76,9 @@ export default function AdminAssetsPanel() {
     }
     try {
       const uniqueName = Date.now() + '-' + Math.random().toString(36).substring(7) + '-' + file.name;
-      const { data, error } = await supabase.storage
-        .from('crm-uploads')
-        .upload(uniqueName, file);
+      const publicUrl = await uploadWithTus(file, uniqueName);
         
-      if (error) throw error;
-      
-      const { data: publicUrlData } = supabase.storage
-        .from('crm-uploads')
-        .getPublicUrl(uniqueName);
-        
-      setForm((prev) => ({ ...prev, fileName: file.name, fileData: publicUrlData.publicUrl }));
+      setForm((prev) => ({ ...prev, fileName: file.name, fileData: publicUrl }));
     } catch (err) {
       console.error('File upload failed', err);
       alert('File upload failed. Please try again.');

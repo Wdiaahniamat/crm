@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
+import { uploadWithTus } from '../utils/uploadUtils';
 
 
 export default function ChatPanel({ employeeId, onBack }) {
@@ -40,17 +41,9 @@ export default function ChatPanel({ employeeId, onBack }) {
     }
     try {
       const uniqueName = Date.now() + '-' + Math.random().toString(36).substring(7) + '-' + file.name;
-      const { data, error } = await supabase.storage
-        .from('crm-uploads')
-        .upload(uniqueName, file);
+      const publicUrl = await uploadWithTus(file, uniqueName);
         
-      if (error) throw error;
-      
-      const { data: publicUrlData } = supabase.storage
-        .from('crm-uploads')
-        .getPublicUrl(uniqueName);
-        
-      setAttachment({ name: file.name, data: publicUrlData.publicUrl, type: file.type });
+      setAttachment({ name: file.name, data: publicUrl, type: file.type });
       setError('');
     } catch (err) {
       console.error('File upload failed', err);

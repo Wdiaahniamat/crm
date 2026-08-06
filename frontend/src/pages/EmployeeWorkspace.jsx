@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '../api';
 import { supabase } from '../supabaseClient';
+import { uploadWithTus } from '../utils/uploadUtils';
 import { useAuth } from '../context/AuthContext';
 import TaskCard from '../components/TaskCard';
 import AnnouncementsWidget from '../components/AnnouncementsWidget';
@@ -176,20 +177,12 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
     }
     try {
       const uniqueName = Date.now() + '-' + Math.random().toString(36).substring(7) + '-' + file.name;
-      const { data, error } = await supabase.storage
-        .from('crm-uploads')
-        .upload(uniqueName, file);
-        
-      if (error) throw error;
-      
-      const { data: publicUrlData } = supabase.storage
-        .from('crm-uploads')
-        .getPublicUrl(uniqueName);
+      const publicUrl = await uploadWithTus(file, uniqueName);
         
       setDocFile({
         name: file.name,
         type: file.type,
-        data: publicUrlData.publicUrl
+        data: publicUrl
       });
     } catch (err) {
       console.error('Upload failed', err);
@@ -289,17 +282,9 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
       
       const fileDataPromises = files.map(async (file) => {
         const uniqueName = Date.now() + '-' + Math.random().toString(36).substring(7) + '-' + file.name;
-        const { data, error } = await supabase.storage
-          .from('crm-uploads')
-          .upload(uniqueName, file);
+        const publicUrl = await uploadWithTus(file, uniqueName);
           
-        if (error) throw error;
-        
-        const { data: publicUrlData } = supabase.storage
-          .from('crm-uploads')
-          .getPublicUrl(uniqueName);
-          
-        return { name: file.name, data: publicUrlData.publicUrl };
+        return { name: file.name, data: publicUrl };
       });
       
       try {
