@@ -15,7 +15,8 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 def upload_file(file: UploadFile = File(...), user: dict = Depends(auth_required)):
     try:
         # Generate a unique filename to prevent collisions
-        file_ext = os.path.splitext(file.filename)[1]
+        original_filename = file.filename or "uploaded_file"
+        file_ext = os.path.splitext(original_filename)[1]
         unique_filename = f"{uuid.uuid4()}{file_ext}"
         file_path = os.path.join(UPLOAD_DIR, unique_filename)
         
@@ -23,6 +24,6 @@ def upload_file(file: UploadFile = File(...), user: dict = Depends(auth_required
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
-        return {"url": f"/api/uploads/{unique_filename}", "fileName": file.filename}
+        return {"url": f"/api/uploads/{unique_filename}", "fileName": original_filename}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": f"Failed to upload file: {str(e)}"})
