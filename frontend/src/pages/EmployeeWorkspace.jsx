@@ -318,8 +318,9 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
         loadAll();
         setNotice('Work completion proof files attached successfully.');
         setTimeout(() => setNotice(''), 4000);
-      } catch {
-        setNotice('Failed to attach work files.');
+      } catch (err) {
+        console.error('Upload failed:', err);
+        setNotice('Failed to attach work files: ' + (err.message || 'Unknown error. Check console.'));
       }
     };
 
