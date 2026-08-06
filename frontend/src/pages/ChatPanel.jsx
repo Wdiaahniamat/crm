@@ -30,19 +30,25 @@ export default function ChatPanel({ employeeId, onBack }) {
   const fileInputRef = useRef(null);
   const wsRef = useRef(null);
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
       setError('File is too large. Maximum size is 5MB.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setAttachment({ name: file.name, data: ev.target.result, type: file.type });
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await api.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setAttachment({ name: file.name, data: res.data.url, type: file.type });
       setError('');
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('File upload failed', err);
+      setError('File upload failed.');
+    }
   };
 
   useEffect(() => {

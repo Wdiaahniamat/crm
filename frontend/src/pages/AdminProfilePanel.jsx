@@ -54,22 +54,28 @@ export default function AdminProfilePanel() {
     }
   }
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) {
       setDocFile(null);
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await api.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
       setDocFile({
         name: file.name,
         type: file.type,
         size: file.size,
-        data: reader.result,
+        data: res.data.url,
       });
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Upload failed', err);
+      alert('File upload failed.');
+    }
   };
 
   async function handleAddDoc(e) {

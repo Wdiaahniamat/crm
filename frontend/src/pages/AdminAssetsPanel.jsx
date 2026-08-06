@@ -66,17 +66,23 @@ export default function AdminAssetsPanel() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) {
       setForm((prev) => ({ ...prev, fileName: '', fileData: '' }));
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setForm((prev) => ({ ...prev, fileName: file.name, fileData: reader.result }));
-    };
-    reader.readAsDataURL(file);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await api.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setForm((prev) => ({ ...prev, fileName: res.data.fileName, fileData: res.data.url }));
+    } catch (err) {
+      console.error('File upload failed', err);
+      alert('File upload failed. Please try again.');
+    }
   };
 
   const openAddModal = () => {

@@ -4,11 +4,12 @@ sys.path.insert(0, os.path.dirname(__file__))
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from database import engine, Base
-from routers import auth, requests, users, tasks, leaves, attendance, clients, projects, departments, events, meetings, chat, notifications, assets, announcements, company_info
+from routers import auth, requests, users, tasks, leaves, attendance, clients, projects, departments, events, meetings, chat, notifications, assets, announcements, company_info, upload
 
 # Ensure all database tables are created
 Base.metadata.create_all(bind=engine)
@@ -23,6 +24,10 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
 
 app = FastAPI(title="CRM Backend", lifespan=lifespan)
+
+uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -52,6 +57,7 @@ app.include_router(notifications.router, prefix="/api/notifications", tags=["not
 app.include_router(assets.router, prefix="/api/assets", tags=["assets"])
 app.include_router(announcements.router, prefix="/api/announcements", tags=["announcements"])
 app.include_router(company_info.router, prefix="/api/company-info", tags=["company-info"])
+app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
 
 @app.get("/api/init-admin")
 def init_admin():
