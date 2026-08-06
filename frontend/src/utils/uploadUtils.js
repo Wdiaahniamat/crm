@@ -1,51 +1,72 @@
-import * as tus from 'tus-js-client';
-import { supabaseUrl, supabaseKey, supabase } from '../supabaseClient';
+import api from '../api';
 
-export const uploadWithTus = (file, uniqueName) => {
-  return new Promise((resolve, reject) => {
-    const upload = new tus.Upload(file, {
-      endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
-      retryDelays: [0, 3000, 5000, 10000, 20000],
-      headers: {
-        Authorization: `Bearer ${supabaseKey}`,
-        apikey: supabaseKey,
-        'x-upsert': 'true',
-      },
-      uploadDataDuringCreation: true,
-      removeFingerprintOnSuccess: true,
-      metadata: {
-        bucketName: 'crm-uploads',
-        objectName: uniqueName,
-        contentType: file.type || 'application/octet-stream',
-        cacheControl: '3600',
-      },
-      chunkSize: 6 * 1024 * 1024, // 6MB chunks
-      onError: function (error) {
-        console.error('TUS upload failed:', error);
-        reject(error);
-      },
-      onProgress: function (bytesUploaded, bytesTotal) {
-        const percentage = ((bytesUploaded / bytesTotal) * 100).toFixed(2);
-        console.log(`Uploading ${file.name}: ${bytesUploaded}/${bytesTotal} (${percentage}%)`);
-      },
-      onSuccess: function () {
-        console.log(`TUS upload complete for ${file.name}`);
-        // Return public URL after success
-        const { data } = supabase.storage.from('crm-uploads').getPublicUrl(uniqueName);
-        resolve(data.publicUrl);
-      },
-    });
+const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB
 
-    // Check for previous uploads to resume
-    upload.findPreviousUploads().then(function (previousUploads) {
-      if (previousUploads.length > 0) {
-        upload.resumeFromPreviousUpload(previousUploads[0]);
+export const uploadWithTus = async (file, uniqueName) => {
+  try {
+    const fileSize = file.size;
+    const finalUniqueName = uniqueName || file.name;
+
+    if (fileSize <= CHUNK_SIZE) {
+      // Small file, normal upload
+      const formData = new FormData();
+      formData.append('file', file, finalUniqueName);
+
+      const res = await api.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percentage = ((progressEvent.loaded / progressEvent.total) * 100).toFixed(2);
+            console.log(`Uploading ${file.name}: ${progressEvent.loaded}/${progressEvent.total} (${percentage}%)`);
+          }
+        },
+      });
+
+      if (res.data && res.data.url) {
+        let fullUrl = res.data.url;
+        if (fullUrl.startsWith('/')) {
+          fullUrl = `${api.defaults.baseURL.replace('/api', '')}${fullUrl}`;
+        }
+        return fullUrl;
       }
-      upload.start();
-    }).catch((err) => {
-      // If findPreviousUploads fails, try starting fresh
-      console.warn('Failed to find previous uploads, starting fresh', err);
-      upload.start();
-    });
-  });
+      throw new Error('No URL returned from backend');
+    }
+
+    // Large file, chunked upload
+    const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
+    const chunkUrls = [];
+
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+      const start = chunkIndex * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, fileSize);
+      const chunk = file.slice(start, end);
+
+      const chunkFileName = `${finalUniqueName}.part${chunkIndex + 1}`;
+      
+      const formData = new FormData();
+      formData.append('file', chunk, chunkFileName);
+
+      console.log(`Uploading chunk ${chunkIndex + 1}/${totalChunks} for ${file.name}`);
+      const res = await api.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (res.data && res.data.url) {
+        let fullUrl = res.data.url;
+        if (fullUrl.startsWith('/')) {
+          fullUrl = `${api.defaults.baseURL.replace('/api', '')}${fullUrl}`;
+        }
+        chunkUrls.push(fullUrl);
+      } else {
+        throw new Error(`No URL returned for chunk ${chunkIndex + 1}`);
+      }
+    }
+
+    // Return the stringified array of chunk URLs
+    return JSON.stringify(chunkUrls);
+
+  } catch (err) {
+    console.error('Upload failed:', err);
+    throw err;
+  }
 };
