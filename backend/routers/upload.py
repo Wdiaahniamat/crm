@@ -11,6 +11,7 @@ router = APIRouter()
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+@router.post("")
 @router.post("/")
 def upload_file(file: UploadFile = File(...), user: dict = Depends(auth_required)):
     try:
