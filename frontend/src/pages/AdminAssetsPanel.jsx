@@ -75,9 +75,7 @@ export default function AdminAssetsPanel() {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const res = await api.post('/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await api.post('/upload', formData);
       setForm((prev) => ({ ...prev, fileName: res.data.fileName, fileData: res.data.url }));
     } catch (err) {
       console.error('File upload failed', err);

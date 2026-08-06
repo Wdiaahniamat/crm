@@ -176,9 +176,7 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const res = await api.post('/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await api.post('/upload', formData);
       setDocFile({
         name: file.name,
         type: file.type,
@@ -284,9 +282,7 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
       const fileDataPromises = files.map(async (file) => {
         const formData = new FormData();
         formData.append('file', file);
-        const res = await api.post('/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        const res = await api.post('/upload', formData);
         return { name: file.name, data: res.data.url };
       });
       

@@ -63,9 +63,7 @@ export default function AdminProfilePanel() {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const res = await api.post('/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await api.post('/upload', formData);
       setDocFile({
         name: file.name,
         type: file.type,
