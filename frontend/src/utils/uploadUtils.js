@@ -34,9 +34,8 @@ export const uploadWithTus = async (file, uniqueName) => {
 
     // Large file, chunked upload
     const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
-    const chunkUrls = [];
-
-    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+    
+    const chunkPromises = Array.from({ length: totalChunks }, (_, chunkIndex) => {
       const start = chunkIndex * CHUNK_SIZE;
       const end = Math.min(start + CHUNK_SIZE, fileSize);
       const chunk = file.slice(start, end);
@@ -47,20 +46,25 @@ export const uploadWithTus = async (file, uniqueName) => {
       formData.append('file', chunk, chunkFileName);
 
       console.log(`Uploading chunk ${chunkIndex + 1}/${totalChunks} for ${file.name}`);
-      const res = await api.post('/upload', formData, {
+      return api.post('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      if (res.data && res.data.url) {
-        let fullUrl = res.data.url;
-        if (fullUrl.startsWith('/')) {
-          fullUrl = `${api.defaults.baseURL.replace('/api', '')}${fullUrl}`;
+      }).then(res => {
+        if (res.data && res.data.url) {
+          let fullUrl = res.data.url;
+          if (fullUrl.startsWith('/')) {
+            fullUrl = `${api.defaults.baseURL.replace('/api', '')}${fullUrl}`;
+          }
+          return { index: chunkIndex, url: fullUrl };
+        } else {
+          throw new Error(`No URL returned for chunk ${chunkIndex + 1}`);
         }
-        chunkUrls.push(fullUrl);
-      } else {
-        throw new Error(`No URL returned for chunk ${chunkIndex + 1}`);
-      }
-    }
+      });
+    });
+
+    const results = await Promise.all(chunkPromises);
+    // Sort by index to maintain original order
+    results.sort((a, b) => a.index - b.index);
+    const chunkUrls = results.map(r => r.url);
 
     // Return the stringified array of chunk URLs
     return JSON.stringify(chunkUrls);
