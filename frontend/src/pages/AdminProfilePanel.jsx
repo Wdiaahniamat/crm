@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '../api';
+import { supabase } from '../supabaseClient';
 
 export default function AdminProfilePanel() {
   const [profile, setProfile] = useState(null);
@@ -60,15 +61,22 @@ export default function AdminProfilePanel() {
       setDocFile(null);
       return;
     }
-    const formData = new FormData();
-    formData.append('file', file);
     try {
-      const res = await api.post('/upload', formData);
+      const uniqueName = Date.now() + '-' + Math.random().toString(36).substring(7) + '-' + file.name;
+      const { data, error } = await supabase.storage
+        .from('crm-uploads')
+        .upload(uniqueName, file);
+        
+      if (error) throw error;
+      
+      const { data: publicUrlData } = supabase.storage
+        .from('crm-uploads')
+        .getPublicUrl(uniqueName);
+        
       setDocFile({
         name: file.name,
         type: file.type,
-        size: file.size,
-        data: res.data.url,
+        data: publicUrlData.publicUrl,
       });
     } catch (err) {
       console.error('Upload failed', err);

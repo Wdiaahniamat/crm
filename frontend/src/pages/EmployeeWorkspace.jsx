@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '../api';
+import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import TaskCard from '../components/TaskCard';
 import AnnouncementsWidget from '../components/AnnouncementsWidget';
@@ -173,15 +174,22 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
       setDocFile(null);
       return;
     }
-    const formData = new FormData();
-    formData.append('file', file);
     try {
-      const res = await api.post('/upload', formData);
+      const uniqueName = Date.now() + '-' + Math.random().toString(36).substring(7) + '-' + file.name;
+      const { data, error } = await supabase.storage
+        .from('crm-uploads')
+        .upload(uniqueName, file);
+        
+      if (error) throw error;
+      
+      const { data: publicUrlData } = supabase.storage
+        .from('crm-uploads')
+        .getPublicUrl(uniqueName);
+        
       setDocFile({
         name: file.name,
         type: file.type,
-        size: file.size,
-        data: res.data.url,
+        data: publicUrlData.publicUrl
       });
     } catch (err) {
       console.error('Upload failed', err);
@@ -280,10 +288,18 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
       if (files.length === 0) return;
       
       const fileDataPromises = files.map(async (file) => {
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await api.post('/upload', formData);
-        return { name: file.name, data: res.data.url };
+        const uniqueName = Date.now() + '-' + Math.random().toString(36).substring(7) + '-' + file.name;
+        const { data, error } = await supabase.storage
+          .from('crm-uploads')
+          .upload(uniqueName, file);
+          
+        if (error) throw error;
+        
+        const { data: publicUrlData } = supabase.storage
+          .from('crm-uploads')
+          .getPublicUrl(uniqueName);
+          
+        return { name: file.name, data: publicUrlData.publicUrl };
       });
       
       try {

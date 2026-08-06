@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabaseClient';
 
 
 export default function ChatPanel({ employeeId, onBack }) {
@@ -37,11 +38,19 @@ export default function ChatPanel({ employeeId, onBack }) {
       setError('File is too large. Maximum size is 5MB.');
       return;
     }
-    const formData = new FormData();
-    formData.append('file', file);
     try {
-      const res = await api.post('/upload', formData);
-      setAttachment({ name: file.name, data: res.data.url, type: file.type });
+      const uniqueName = Date.now() + '-' + Math.random().toString(36).substring(7) + '-' + file.name;
+      const { data, error } = await supabase.storage
+        .from('crm-uploads')
+        .upload(uniqueName, file);
+        
+      if (error) throw error;
+      
+      const { data: publicUrlData } = supabase.storage
+        .from('crm-uploads')
+        .getPublicUrl(uniqueName);
+        
+      setAttachment({ name: file.name, data: publicUrlData.publicUrl, type: file.type });
       setError('');
     } catch (err) {
       console.error('File upload failed', err);
