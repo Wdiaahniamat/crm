@@ -23,6 +23,6 @@ def upload_file(file: UploadFile = File(...), user: dict = Depends(auth_required
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
-        return {"url": f"/uploads/{unique_filename}", "fileName": file.filename}
+        return {"url": f"/api/uploads/{unique_filename}", "fileName": file.filename}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": f"Failed to upload file: {str(e)}"})
