@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '../api';
 import Modal from '../components/Modal';
+import { downloadFileFromDataUrl } from '../utils/downloadUtils';
 
 const ASSET_TYPES = ['Social Media', 'Credentials', 'Domain/Web', 'Hosting/Server', 'Other'];
 const ASSET_ICONS = {
@@ -310,7 +311,13 @@ export default function AdminAssetsPanel() {
                 {asset.fileName && (
                   <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
                     <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📎 {asset.fileName}</span>
-                    <a href={asset.fileData} download={asset.fileName} className="btn btn-primary btn-sm" style={{ padding: '4px 10px', fontSize: '11px', textDecoration: 'none', background: 'var(--maroon)' }}>Download</a>
+                    <button 
+                      onClick={(e) => { e.preventDefault(); downloadFileFromDataUrl(asset.fileData, asset.fileName); }}
+                      className="btn btn-primary btn-sm" 
+                      style={{ padding: '4px 10px', fontSize: '11px', border: 'none', background: 'var(--maroon)' }}
+                    >
+                      Download
+                    </button>
                   </div>
                 )}
 

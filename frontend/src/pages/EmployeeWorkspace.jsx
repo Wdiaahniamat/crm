@@ -7,6 +7,7 @@ import MeetingsPanel from './MeetingsPanel';
 import CalendarPanel from './CalendarPanel';
 import ChatPanel from './ChatPanel';
 import { subscribeToPushNotifications } from '../utils/pushNotifications';
+import { downloadFileFromDataUrl } from '../utils/downloadUtils';
 
 const STATUS_LABEL = { 'To Do': 'To Do', pending: 'Pending', 'in-progress': 'In progress', completed: 'Completed', Done: 'Completed' };
 const STATUS_CLASS = { 'To Do': 'pill-pending', pending: 'pill-pending', 'in-progress': 'pill-progress', completed: 'pill-completed', Done: 'pill-completed' };
@@ -489,14 +490,13 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
                         >
                           👁 View File
                         </button>
-                        <a 
-                          href={file.data} 
-                          download={file.name || 'work_deliverable'} 
+                        <button 
+                          onClick={(e) => { e.preventDefault(); downloadFileFromDataUrl(file.data, file.name || 'work_deliverable'); }}
                           className="btn btn-primary btn-sm"
-                          style={{ padding: '4px 10px', fontSize: '12px', textDecoration: 'none' }}
+                          style={{ padding: '4px 10px', fontSize: '12px', border: 'none' }}
                         >
                           ⬇ Download File
-                        </a>
+                        </button>
                         <button
                           onClick={() => handleDeleteFile(idx)}
                           className="btn btn-sm"
@@ -525,14 +525,13 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
                       >
                         👁 View File
                       </button>
-                      <a 
-                        href={task.pmedData} 
-                        download={task.pmedName || 'work_deliverable'} 
+                      <button 
+                        onClick={(e) => { e.preventDefault(); downloadFileFromDataUrl(task.pmedData, task.pmedName || 'work_deliverable'); }}
                         className="btn btn-primary btn-sm"
-                        style={{ padding: '4px 10px', fontSize: '12px', textDecoration: 'none' }}
+                        style={{ padding: '4px 10px', fontSize: '12px', border: 'none' }}
                       >
                         ⬇ Download File
-                      </a>
+                      </button>
                       <button
                         onClick={handleDeleteOldFile}
                         className="btn btn-sm"
@@ -1009,16 +1008,13 @@ export default function EmployeeWorkspace({ tab, employeeId, employeeName, isAdm
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           {doc.fileData && (
-                            <a 
-                              href={doc.fileData} 
-                              target="_blank" 
-                              rel="noreferrer" 
+                            <button 
+                              onClick={(e) => { e.preventDefault(); downloadFileFromDataUrl(doc.fileData, doc.fileName); }}
                               className="btn btn-ghost btn-sm"
-                              style={{ fontSize: '11px', padding: '4px 8px', color: 'var(--maroon)', borderColor: 'var(--maroon)' }}
-                              download={doc.fileName}
+                              style={{ fontSize: '11px', padding: '4px 8px', color: 'var(--maroon)', borderColor: 'var(--maroon)', background: 'transparent' }}
                             >
-                              👁 View File
-                            </a>
+                              👁 View/Download File
+                            </button>
                           )}
                           <span style={{
                             fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '999px',
